@@ -59,7 +59,7 @@ const CheckboxRow = styled.label`
 const Submit = styled.button`
   padding: 0.875rem 1.5rem;
   background: ${({ theme }) => theme.accent};
-  color: ${({ theme }) => theme.signalWhite};
+  color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
   font-family: "Space Grotesk", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;

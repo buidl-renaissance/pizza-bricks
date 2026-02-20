@@ -3,13 +3,22 @@ import styled from "styled-components";
 import { motion, useInView } from "framer-motion";
 import { LandingSection } from "./LandingSection";
 import { WaitlistForm } from "./WaitlistForm";
+import { JOIN_POD } from "@/content/landingCopy";
 
 const Title = styled(motion.h2)`
   font-family: "Fredoka", "Space Grotesk", sans-serif;
   font-size: clamp(1.5rem, 4vw, 2rem);
   color: ${({ theme }) => theme.text};
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
   text-align: center;
+`;
+
+const Subtitle = styled(motion.p)`
+  font-family: "Inter", sans-serif;
+  font-size: 1rem;
+  color: ${({ theme }) => theme.textSecondary};
+  text-align: center;
+  margin: 0 0 1rem;
 `;
 
 const DiscordWrap = styled(motion.p)`
@@ -33,26 +42,32 @@ const DiscordLink = styled.a`
   }
 `;
 
-export const EarlyAccessSection: React.FC = () => {
+export const JoinPodSection: React.FC = () => {
   const ref = React.useRef(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
   const discordUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE;
 
   return (
-    <LandingSection id="early-access">
+    <LandingSection id={JOIN_POD.id}>
       <Title
         ref={ref}
         initial={{ opacity: 0, y: 12 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.4 }}
       >
-        Join Early Access
+        🧱 {JOIN_POD.title}
       </Title>
+      <Subtitle
+        initial={{ opacity: 0, y: 8 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.4, delay: 0.05 }}
+      >
+        {JOIN_POD.subtitle}
+      </Subtitle>
       <WaitlistForm
-        type="early_access"
+        type={JOIN_POD.formType}
         fields="email"
-        unityCheckbox
-        submitLabel="Join the list"
+        submitLabel={JOIN_POD.submitLabel}
       />
       {discordUrl && (
         <DiscordWrap
