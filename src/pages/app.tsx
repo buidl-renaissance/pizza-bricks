@@ -23,7 +23,7 @@ const AppEntryPage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Enter | {APP_NAME}</title>
+        <title>{`Enter | ${APP_NAME}`}</title>
         <meta name="description" content={`Enter ${APP_NAME}`} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>

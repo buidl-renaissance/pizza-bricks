@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>{APP_NAME} — Build the Future of Pizza</title>
+        <title>{`${APP_NAME} — Build the Future of Pizza`}</title>
         <meta name="description" content={POSITIONING} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />

@@ -255,7 +255,7 @@ const DashboardPage: React.FC = () => {
   return (
     <Container>
       <Head>
-        <title>Dashboard | {APP_NAME}</title>
+        <title>{`Dashboard | ${APP_NAME}`}</title>
         <meta name="description" content={`${APP_NAME} Dashboard`} />
         <link rel="icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

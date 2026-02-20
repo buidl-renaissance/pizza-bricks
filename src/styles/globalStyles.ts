@@ -1,8 +1,6 @@
 import { createGlobalStyle } from 'styled-components';
 
 export const GlobalStyle = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@400;500;600;700&family=Permanent+Marker&family=Caveat:wght@400;500;600;700&display=swap');
-
   * {
     box-sizing: border-box;
     margin: 0;
