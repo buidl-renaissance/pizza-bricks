@@ -43,6 +43,9 @@ declare module 'styled-components' {
     steelGray: string;
     infraRed: string;
 
+    // Optional: text on accent background (e.g. primary buttons). Falls back to signalWhite.
+    onAccent?: string;
+
     // Pizza Bricks landing (optional; used only on landing page)
     pizzaRed?: string;
     pizzaCream?: string;
@@ -107,18 +110,18 @@ export const darkTheme: DefaultTheme = {
   brickChalkFont: '"Permanent Marker", "Caveat", cursive',
 };
 
-// Pizza Bricks landing — warm red + off-white, playful
+// Pizza Bricks landing — warm red + off-white, strong text contrast
 export const pizzaLandingTheme: DefaultTheme = {
   ...darkTheme,
   background: '#FDF8F3',
   backgroundAlt: '#F5EDE4',
   surface: '#FFFFFF',
   surfaceHover: '#FDF8F3',
-  text: '#2D1F1A',
-  textSecondary: '#5C4A42',
-  textMuted: '#8B7355',
-  border: '#D4C4B5',
-  borderSubtle: '#E8DDD4',
+  text: '#1A1412',
+  textSecondary: '#3D3028',
+  textMuted: '#4A3C35',
+  border: '#A89080',
+  borderSubtle: '#C4B5A8',
   borderRadius: '8px',
   accent: '#C41E3A',
   accentHover: '#A01830',
@@ -127,22 +130,23 @@ export const pizzaLandingTheme: DefaultTheme = {
   accentGold: '#B8860B',
   live: '#C41E3A',
   liveGlow: 'rgba(196, 30, 58, 0.3)',
-  success: '#22C55E',
-  warning: '#F59E0B',
+  success: '#1A7B3A',
+  warning: '#B45309',
   danger: '#C41E3A',
   shadow: 'rgba(45, 31, 26, 0.12)',
   shadowStrong: 'rgba(45, 31, 26, 0.2)',
   overlay: 'rgba(253, 248, 243, 0.95)',
   glow: '0 0 20px rgba(196, 30, 58, 0.2)',
   signalWhite: '#FDF8F3',
-  steelGray: '#D4C4B5',
+  onAccent: '#FFFFFF',
+  steelGray: '#A89080',
   infraRed: '#C41E3A',
   pizzaRed: '#C41E3A',
   pizzaCream: '#FDF8F3',
-  brickBrown: '#8B6355',
-  brickMortar: 'rgba(45, 31, 26, 0.08)',
+  brickBrown: '#6B5344',
+  brickMortar: 'rgba(45, 31, 26, 0.1)',
   brickGroutBorder: '#2a2520',
-  brickChalkColor: '#E8C547',
+  brickChalkColor: '#1A1412',
   brickChalkFont: '"Permanent Marker", "Caveat", cursive',
 };
 

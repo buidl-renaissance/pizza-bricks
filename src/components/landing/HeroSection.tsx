@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 import {
   TAGLINE,
   SUBHEAD,
-  HERO_CTA_BUILDERS,
-  HERO_CTA_PIZZERIA,
+  HERO_CTA_POD,
+  HERO_CTA_BUSINESS,
 } from "@/content/landingCopy";
 
 const Section = styled.section`
@@ -66,6 +66,23 @@ const CtaRow = styled(motion.div)`
   align-items: center;
 `;
 
+const SecondaryLinks = styled(motion.div)`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const SecondaryLink = styled(Link)`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.textMuted};
+  text-decoration: none;
+  &:hover {
+    color: ${({ theme }) => theme.accent};
+  }
+`;
+
 const CtaButton = styled(Link)<{ $primary?: boolean }>`
   display: inline-flex;
   align-items: center;
@@ -81,7 +98,7 @@ const CtaButton = styled(Link)<{ $primary?: boolean }>`
     $primary
       ? `
     background: ${theme.accent};
-    color: ${theme.signalWhite};
+    color: ${theme.onAccent ?? theme.signalWhite};
     &:hover { background: ${theme.accentHover}; }
   `
       : `
@@ -156,13 +173,21 @@ export const HeroSection: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.6 }}
       >
-        <CtaButton href="#early-access" $primary>
-          🍕 {HERO_CTA_BUILDERS}
+        <CtaButton href="#join-pod" $primary>
+          🧱 {HERO_CTA_POD}
         </CtaButton>
-        <CtaButton href="#pizzeria-partners">
-          🧱 {HERO_CTA_PIZZERIA}
+        <CtaButton href="#pizzeria-form">
+          🍕 {HERO_CTA_BUSINESS}
         </CtaButton>
       </CtaRow>
+      <SecondaryLinks
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.7 }}
+      >
+        <SecondaryLink href="/business">For Business →</SecondaryLink>
+        <SecondaryLink href="/community">Community / Game →</SecondaryLink>
+      </SecondaryLinks>
     </Section>
   );
 };

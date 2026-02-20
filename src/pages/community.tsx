@@ -12,7 +12,6 @@ import { CommunityPoweredBy } from "@/components/community/CommunityPoweredBy";
 import { CommunityCities } from "@/components/community/CommunityCities";
 import { CommunityForOwners } from "@/components/community/CommunityForOwners";
 import { CommunityFAQ } from "@/components/community/CommunityFAQ";
-import { CommunityJoinSection } from "@/components/community/CommunityJoinSection";
 import { CommunityFinalCTA } from "@/components/community/CommunityFinalCTA";
 import { CommunityFooter } from "@/components/community/CommunityFooter";
 import { COMMUNITY_META } from "@/content/communityCopy";
@@ -22,7 +21,7 @@ const PageWrap = styled.main`
   width: 100%;
 `;
 
-const HomePage: React.FC = () => {
+const CommunityPage: React.FC = () => {
   return (
     <>
       <Head>
@@ -37,7 +36,7 @@ const HomePage: React.FC = () => {
       <ThemeProvider theme={pizzaLandingTheme}>
         <div style={{ minHeight: "100vh", background: pizzaLandingTheme.background }}>
           <CommunityNavbar />
-          <PageWrap style={{ paddingTop: "4rem" }}>
+          <PageWrap style={{ paddingTop: 0 }}>
             <CommunityHero />
             <CommunityHowItWorks />
             <CommunityWhyPizza />
@@ -46,7 +45,6 @@ const HomePage: React.FC = () => {
             <CommunityCities />
             <CommunityForOwners />
             <CommunityFAQ />
-            <CommunityJoinSection />
             <CommunityFinalCTA />
           </PageWrap>
           <CommunityFooter />
@@ -56,4 +54,10 @@ const HomePage: React.FC = () => {
   );
 };
 
-export default HomePage;
+export async function getServerSideProps() {
+  return {
+    redirect: { destination: "/", permanent: true },
+  };
+}
+
+export default CommunityPage;

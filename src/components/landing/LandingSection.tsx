@@ -73,12 +73,11 @@ const Inner = styled.div<{ $brick?: boolean }>`
     `
     color: ${theme.brickChalkColor};
     font-family: ${theme.brickChalkFont};
-    /* Subtle outline for contrast on brick; no solid background */
+    /* Improve legibility on brick texture */
     text-shadow:
-      0 1px 0 rgba(0,0,0,0.15),
-      1px 0 0 rgba(0,0,0,0.1),
-      -1px 0 0 rgba(0,0,0,0.1),
-      0 -1px 0 rgba(0,0,0,0.1);
+      0 0 1px rgba(255,255,255,0.6),
+      0 1px 2px rgba(0,0,0,0.2),
+      0 2px 4px rgba(0,0,0,0.1);
     & h1, & h2, & h3, & h4, & h5, & h6 {
       font-family: ${theme.brickChalkFont};
       color: inherit;
