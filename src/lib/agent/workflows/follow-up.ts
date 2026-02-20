@@ -4,6 +4,7 @@ import { eq, and, lt, isNull } from 'drizzle-orm';
 import {
   insertEmailLog,
   updateEmailLogStatus,
+  updateEmailLogMessageId,
   insertActivityEvent,
   getProspect,
   touchProspect,
@@ -12,6 +13,8 @@ import { getTemplateByStep } from '@/lib/agent/email-templates';
 import { Resend } from 'resend';
 
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'Bricks <bricks@builddetroit.xyz>';
+const SIMULATOR_INBOX = process.env.SIMULATOR_INBOX ?? null;
+const INBOUND_REPLY_TO = process.env.INBOUND_REPLY_TO ?? process.env.RESEND_INBOUND_REPLY_TO ?? 'bricks@builddetroit.xyz';
 
 // Days to wait between sequence steps
 const STEP_DELAYS_DAYS: Record<number, number> = {
@@ -82,14 +85,21 @@ export async function runFollowUp(): Promise<number> {
 
       if (resend) {
         try {
-          await resend.emails.send({
+          const to = SIMULATOR_INBOX ? [SIMULATOR_INBOX] : [prospect.email];
+          const payload: Parameters<typeof resend.emails.send>[0] = {
             from: FROM_ADDRESS,
-            to: [prospect.email],
+            to,
             subject: template.subject,
             html: template.html({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
             text: template.text({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
-          });
-          await updateEmailLogStatus(newLog.id, 'sent', { sentAt: new Date() });
+          };
+          if (SIMULATOR_INBOX && INBOUND_REPLY_TO) {
+            payload.replyTo = INBOUND_REPLY_TO;
+          }
+          const sent = await resend.emails.send(payload);
+          const sentAt = new Date();
+          await updateEmailLogStatus(newLog.id, 'sent', { sentAt });
+          if (sent.data?.id) await updateEmailLogMessageId(newLog.id, sent.data.id);
         } catch {
           await updateEmailLogStatus(newLog.id, 'failed');
           continue;

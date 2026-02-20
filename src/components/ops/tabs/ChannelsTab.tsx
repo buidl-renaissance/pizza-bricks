@@ -110,7 +110,7 @@ function LiveSiteCard({ site, onDone }: { site: EnrichedSite; onDone: () => void
     }
   }, [polled, onDone]);
 
-  return <SiteStatusCard site={displayed} />;
+  return <SiteStatusCard site={displayed} onRedeploy={onDone} />;
 }
 
 export function ChannelsTab() {

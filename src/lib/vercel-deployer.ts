@@ -53,6 +53,62 @@ function buildUrl(path: string): string {
   return url.toString();
 }
 
+const BUILD_ERROR_SUMMARY_MAX_LEN = 500;
+
+export interface DeploymentEvent {
+  type?: string;
+  created?: number;
+  payload?: { text?: string; [key: string]: unknown };
+}
+
+/**
+ * Fetches deployment build events from Vercel and returns an error summary
+ * (first ~500 chars of error-like log lines) plus optional raw events.
+ */
+export async function getDeploymentBuildLogs(
+  deploymentId: string,
+  opts: { rawEvents?: boolean } = {}
+): Promise<{ buildErrorSummary: string; rawEvents?: DeploymentEvent[] }> {
+  const url = new URL(buildUrl(`/v3/deployments/${deploymentId}/events`));
+  url.searchParams.set('limit', '200');
+  const res = await fetch(url.toString(), { headers: buildHeaders() });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Vercel getDeploymentBuildLogs failed (${res.status}): ${err}`);
+  }
+  const events: DeploymentEvent[] = await res.json();
+  const errorLines: string[] = [];
+  for (const ev of events) {
+    const text = ev.payload?.text;
+    if (typeof text === 'string' && text.trim()) {
+      const lower = text.toLowerCase();
+      if (lower.includes('error') || lower.includes('failed') || ev.type === 'stderr') {
+        errorLines.push(text.trim());
+      }
+    }
+  }
+  const combined = errorLines.join('\n').slice(0, BUILD_ERROR_SUMMARY_MAX_LEN);
+  const buildErrorSummary = combined || 'Build failed (no error details in logs).';
+  const out: { buildErrorSummary: string; rawEvents?: DeploymentEvent[] } = {
+    buildErrorSummary,
+  };
+  if (opts.rawEvents) out.rawEvents = events;
+  return out;
+}
+
+async function disableProjectProtection(projectId: string): Promise<void> {
+  const res = await fetch(buildUrl(`/v9/projects/${projectId}`), {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify({ ssoProtection: null }),
+  });
+  // Non-fatal — log but don't throw
+  if (!res.ok) {
+    const err = await res.text();
+    console.warn(`[vercel] Could not disable project protection (${res.status}): ${err}`);
+  }
+}
+
 export async function deployToVercel(
   options: DeployOptions
 ): Promise<VercelDeployment> {
@@ -77,7 +133,14 @@ export async function deployToVercel(
     throw new Error(`Vercel deployment failed (${res.status}): ${err}`);
   }
 
-  return res.json() as Promise<VercelDeployment>;
+  const deployment = await res.json() as VercelDeployment;
+
+  // Disable SSO/deployment protection so the site is publicly accessible
+  if (deployment.projectId) {
+    await disableProjectProtection(deployment.projectId);
+  }
+
+  return deployment;
 }
 
 export async function getDeploymentStatus(

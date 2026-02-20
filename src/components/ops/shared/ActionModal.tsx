@@ -64,6 +64,26 @@ const Input = styled.input`
   &::placeholder { color: ${({ theme }) => theme.textMuted}; }
 `;
 
+const Textarea = styled.textarea`
+  width: 100%;
+  min-height: 100px;
+  padding: 0.6rem 0.875rem;
+  background: ${({ theme }) => theme.backgroundAlt};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 6px;
+  color: ${({ theme }) => theme.text};
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.accent};
+  }
+  &::placeholder { color: ${({ theme }) => theme.textMuted}; }
+`;
+
 const ButtonRow = styled.div`
   display: flex;
   gap: 0.75rem;
@@ -114,6 +134,7 @@ export interface ActionDef {
   description: string;
   requiresProspectId?: boolean;
   requiresTemplateId?: boolean;
+  requiresBody?: boolean;
 }
 
 interface ActionModalProps {
@@ -122,26 +143,38 @@ interface ActionModalProps {
   onSuccess?: () => void;
 }
 
+const SIMULATE_REPLY_DEFAULT_BODY = "Yes, we'd love a website and some flyers for our upcoming event. Can you send over the marketing materials?";
+
 export function ActionModal({ actionDef, onClose, onSuccess }: ActionModalProps) {
   const [prospectId, setProspectId] = useState('');
   const [templateId, setTemplateId] = useState('cold_outreach_1');
+  const [replyBody, setReplyBody] = useState(SIMULATE_REPLY_DEFAULT_BODY);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleExecute = async () => {
+    if (actionDef.requiresProspectId && !prospectId.trim()) {
+      setError('Prospect ID is required');
+      return;
+    }
+    if (actionDef.requiresBody && !replyBody.trim()) {
+      setError('Reply body is required');
+      return;
+    }
     setLoading(true);
     setResult(null);
     setError(null);
     try {
-      const body: Record<string, string> = { action: actionDef.action };
-      if (actionDef.requiresProspectId) body.prospectId = prospectId;
-      if (actionDef.requiresTemplateId) body.templateId = templateId;
+      const payload: Record<string, string> = { action: actionDef.action };
+      if (actionDef.requiresProspectId) payload.prospectId = prospectId.trim();
+      if (actionDef.requiresTemplateId) payload.templateId = templateId;
+      if (actionDef.requiresBody) payload.body = replyBody.trim();
 
       const res = await fetch('/api/ops/actions/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const data = await res.json() as { success?: boolean; result?: unknown; error?: string };
       if (!res.ok || !data.success) {
@@ -180,6 +213,16 @@ export function ActionModal({ actionDef, onClose, onSuccess }: ActionModalProps)
               value={templateId}
               onChange={e => setTemplateId(e.target.value)}
               placeholder="cold_outreach_1"
+            />
+          </>
+        )}
+        {actionDef.requiresBody && (
+          <>
+            <Label>Reply body</Label>
+            <Textarea
+              value={replyBody}
+              onChange={e => setReplyBody(e.target.value)}
+              placeholder={SIMULATE_REPLY_DEFAULT_BODY}
             />
           </>
         )}

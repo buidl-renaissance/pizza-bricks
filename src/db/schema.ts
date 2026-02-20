@@ -9,6 +9,7 @@ export type ActivityEventType =
   | 'email_sent'|'email_opened'|'email_replied'|'email_bounced'
   | 'site_generated'|'site_published'|'site_viewed'|'prospect_discovered'|'prospect_batch_scraped'
   | 'onboarding_started'|'wallet_setup'|'onboarding_completed'|'follow_up_triggered'
+  | 'marketing_materials_requested'|'event_influencer_requested'|'reply_intent_parsed'
   | 'manual_action'|'agent_error';
 export type ActivityEventStatus = 'completed'|'active'|'pending'|'failed';
 export type TriggeredBy = 'agent'|'manual'|'system';
@@ -64,6 +65,7 @@ export const emailLogs = sqliteTable('email_logs', {
   openedAt: integer('openedAt', { mode: 'timestamp' }),
   repliedAt: integer('repliedAt', { mode: 'timestamp' }),
   bounceReason: text('bounceReason'),
+  messageId: text('messageId'), // Resend email id or RFC Message-ID for thread matching
 });
 
 export const generatedSites = sqliteTable('generated_sites', {

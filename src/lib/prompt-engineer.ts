@@ -62,7 +62,11 @@ Technical requirements:
 - Mobile-first responsive design
 - Proper JSON string escaping: use \\n for newlines inside string values, escape all quotes with \\"
 - package.json must include: next, react, react-dom, typescript, tailwindcss, postcss, autoprefixer
-- CRITICAL JSX RULE: Every React component's return() must have EXACTLY ONE root element. Always wrap multiple siblings in a Fragment: return (<>...</>) — never return two or more sibling elements without a wrapper
+- CRITICAL JSX RULES (violating these causes TypeScript build failure):
+  1. Every component return() must have exactly ONE root element — wrap siblings in <> ... </>
+  2. Inside JSX expressions {}, if you render multiple elements write them as {cond && (<><A /><B /></>)} — NEVER {cond && <A /><B />}
+  3. Every opening JSX tag must have a matching closing tag or be self-closing (e.g. <img />, not <img>)
+  4. String template literals inside JSX must use backticks if they contain expressions, or be proper JSX
 
 Design requirements:
 - Primary CTA: "${variant.ctaPrimary}"

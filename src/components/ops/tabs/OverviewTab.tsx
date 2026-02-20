@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { MetricCard } from '../shared/MetricCard';
 import { AgentStatusBadge } from '../shared/AgentStatusBadge';
@@ -57,15 +57,82 @@ const ActivityList = styled.div`
   gap: 0.5rem;
 `;
 
+const SyncRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  background: ${({ theme }) => theme.surface};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 10px;
+`;
+
+const SyncButton = styled.button<{ $loading?: boolean }>`
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.background};
+  background: ${({ theme }) => theme.accent};
+  border: none;
+  border-radius: 6px;
+  cursor: ${({ $loading }) => ($loading ? 'wait' : 'pointer')};
+  opacity: ${({ $loading }) => ($loading ? 0.8 : 1)};
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.accentHover};
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+`;
+
+const SyncSummary = styled.span`
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.textMuted};
+`;
+
 export function OverviewTab() {
   const { data: metrics, loading: metricsLoading } = useMetrics();
   const { data: stages, loading: stagesLoading } = usePipelineSummary();
   const { alerts } = useAlerts();
   const { state: agent, loading: agentLoading, pause, resume } = useAgentState();
   const { events, connected } = useActivityStream(10);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncSummary, setSyncSummary] = useState<{
+    checked: number;
+    updated: number;
+    failed: number;
+    stillPending: number;
+  } | null>(null);
+
+  const runSync = useCallback(async () => {
+    setSyncLoading(true);
+    setSyncSummary(null);
+    try {
+      const res = await fetch('/api/ops/deployments/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.summary) setSyncSummary(data.summary);
+    } finally {
+      setSyncLoading(false);
+    }
+  }, []);
 
   return (
     <div>
+      <Section>
+        <SectionTitle>Deployment Status</SectionTitle>
+        <SyncRow>
+          <SyncButton type="button" onClick={runSync} disabled={syncLoading} $loading={syncLoading}>
+            {syncLoading ? 'Syncing…' : 'Sync deployment status'}
+          </SyncButton>
+          {syncSummary && (
+            <SyncSummary>
+              Checked {syncSummary.checked}, {syncSummary.updated} updated, {syncSummary.failed} failed
+              {syncSummary.stillPending > 0 ? `, ${syncSummary.stillPending} still building` : ''}.
+            </SyncSummary>
+          )}
+        </SyncRow>
+      </Section>
+
       <Section>
         <SectionTitle>Agent Status</SectionTitle>
         <AgentRow>

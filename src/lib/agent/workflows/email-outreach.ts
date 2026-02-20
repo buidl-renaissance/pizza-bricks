@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import {
   insertEmailLog,
   updateEmailLogStatus,
+  updateEmailLogMessageId,
   insertActivityEvent,
   getEmailLogsByProspect,
   listProspects,
@@ -11,6 +12,11 @@ import { getTemplate } from '@/lib/agent/email-templates';
 
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'Bricks <bricks@builddetroit.xyz>';
 const MAX_STEP = 1; // cold outreach only; follow-up runs separately
+
+/** When set, all outbound emails are sent to this address (e.g. john@builddetroit.xyz). */
+const SIMULATOR_INBOX = process.env.SIMULATOR_INBOX ?? null;
+/** Reply-To for inbound processing; replies will be received at this address. */
+const INBOUND_REPLY_TO = process.env.INBOUND_REPLY_TO ?? process.env.RESEND_INBOUND_REPLY_TO ?? 'bricks@builddetroit.xyz';
 
 interface EmailConfig {
   emailEnabled: boolean;
@@ -56,15 +62,22 @@ export async function runEmailOutreach(config: EmailConfig): Promise<number> {
     });
 
     try {
-      await resend.emails.send({
+      const to = SIMULATOR_INBOX ? [SIMULATOR_INBOX] : [prospect.email!];
+      const payload: Parameters<typeof resend.emails.send>[0] = {
         from: FROM_ADDRESS,
-        to: [prospect.email!],
+        to,
         subject: template.subject,
         html: template.html({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
         text: template.text({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
-      });
+      };
+      if (SIMULATOR_INBOX && INBOUND_REPLY_TO) {
+        payload.replyTo = INBOUND_REPLY_TO;
+      }
+      const sendResult = await resend.emails.send(payload);
 
-      await updateEmailLogStatus(log.id, 'sent', { sentAt: new Date() });
+      const sentAt = new Date();
+      await updateEmailLogStatus(log.id, 'sent', { sentAt });
+      if (sendResult.data?.id) await updateEmailLogMessageId(log.id, sendResult.data.id);
       await touchProspect(prospect.id);
 
       await insertActivityEvent({
@@ -125,15 +138,22 @@ export async function sendEmailToProspect(prospectId: string, templateId: string
     return;
   }
 
-  await resend.emails.send({
+  const to = SIMULATOR_INBOX ? [SIMULATOR_INBOX] : [prospect.email];
+  const payload: Parameters<typeof resend.emails.send>[0] = {
     from: FROM_ADDRESS,
-    to: [prospect.email],
+    to,
     subject: template.subject,
     html: template.html({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
     text: template.text({ name: prospect.name, contactName: prospect.contactName ?? undefined }),
-  });
+  };
+  if (SIMULATOR_INBOX && INBOUND_REPLY_TO) {
+    payload.replyTo = INBOUND_REPLY_TO;
+  }
+  const sendResult = await resend.emails.send(payload);
 
-  await updateEmailLogStatus(log.id, 'sent', { sentAt: new Date() });
+  const sentAt = new Date();
+  await updateEmailLogStatus(log.id, 'sent', { sentAt });
+  if (sendResult.data?.id) await updateEmailLogMessageId(log.id, sendResult.data.id);
   await touchProspect(prospectId);
 
   await insertActivityEvent({

@@ -8,7 +8,7 @@ import type { ActivityEvent } from '@/db/ops';
 import type { ActivityEventType } from '@/db/schema';
 
 const FILTER_TYPE_MAP: Record<Exclude<FilterValue, ''>, ActivityEventType[]> = {
-  email: ['email_sent', 'email_opened', 'email_replied', 'email_bounced', 'follow_up_triggered'],
+  email: ['email_sent', 'email_opened', 'email_replied', 'email_bounced', 'follow_up_triggered', 'reply_intent_parsed', 'marketing_materials_requested', 'event_influencer_requested'],
   site: ['site_generated', 'site_published', 'site_viewed'],
   discovery: ['prospect_discovered', 'prospect_batch_scraped'],
   onboarding: ['onboarding_started', 'wallet_setup', 'onboarding_completed'],

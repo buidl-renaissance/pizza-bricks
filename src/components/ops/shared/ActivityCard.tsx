@@ -16,6 +16,9 @@ const ICONS: Record<string, string> = {
   wallet_setup: '💼',
   onboarding_completed: '✅',
   follow_up_triggered: '🔔',
+  marketing_materials_requested: '📋',
+  event_influencer_requested: '🎪',
+  reply_intent_parsed: '🧠',
   manual_action: '🖐',
   agent_error: '❌',
 };

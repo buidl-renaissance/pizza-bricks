@@ -180,6 +180,19 @@ const GenBtn = styled.button<{ $loading?: boolean }>`
   &:disabled { opacity: 0.6; }
 `;
 
+const SyncDeployButton = styled.button`
+  padding: 0.4rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.background};
+  background: ${({ theme }) => theme.accent};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover:not(:disabled) { opacity: 0.9; }
+  &:disabled { opacity: 0.7; cursor: wait; }
+`;
+
 // STATUS_LABELS for card badge
 const STATUS_LABELS: Record<string, string> = {
   generating: 'Generating…',
@@ -333,7 +346,24 @@ export function PipelineTab() {
     reloadSites();
   }, [reloadSites]);
 
+  const [syncLoading, setSyncLoading] = useState(false);
+  const handleSyncDeployments = useCallback(async () => {
+    setSyncLoading(true);
+    try {
+      await fetch('/api/ops/deployments/sync', { method: 'POST' });
+      await reloadSites();
+    } finally {
+      setSyncLoading(false);
+    }
+  }, [reloadSites]);
+
   return (
+    <div>
+      <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <SyncDeployButton type="button" onClick={handleSyncDeployments} disabled={syncLoading}>
+          {syncLoading ? 'Syncing…' : 'Sync deployment status'}
+        </SyncDeployButton>
+      </div>
     <Board>
       {STAGES.map(stage => {
         const stageProspects = localProspects.filter(p => p.pipelineStage === stage);
@@ -358,5 +388,6 @@ export function PipelineTab() {
         );
       })}
     </Board>
+    </div>
   );
 }

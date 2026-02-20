@@ -1,4 +1,4 @@
-import { eq, desc, and, sql, count } from 'drizzle-orm';
+import { eq, desc, and, sql, count, inArray, isNull, like } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from './drizzle';
 import {
@@ -177,6 +177,7 @@ export async function insertEmailLog(data: {
   sequenceStep?: number;
   subject: string;
   status?: EmailStatus;
+  messageId?: string | null;
 }): Promise<EmailLog> {
   const db = getDb();
   const id = uuidv4();
@@ -191,9 +192,89 @@ export async function insertEmailLog(data: {
     openedAt: null,
     repliedAt: null,
     bounceReason: null,
+    messageId: data.messageId ?? null,
   };
   await db.insert(emailLogs).values(row);
   return row;
+}
+
+export async function getEmailLog(id: string): Promise<EmailLog | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(emailLogs).where(eq(emailLogs.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getEmailLogByMessageId(messageId: string): Promise<EmailLog | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(emailLogs).where(eq(emailLogs.messageId, messageId)).limit(1);
+  return rows[0];
+}
+
+/** Update email log with Resend message id (e.g. after send). */
+export async function updateEmailLogMessageId(id: string, messageId: string): Promise<void> {
+  const db = getDb();
+  await db.update(emailLogs).set({ messageId }).where(eq(emailLogs.id, id));
+}
+
+/**
+ * Find the best-matching email log for an inbound reply.
+ * 1) If inReplyTo is provided, try to match by messageId (exact or contained in inReplyTo).
+ * 2) If from equals SIMULATOR_INBOX, match most recent sent unreplied log by subject (simulator mode).
+ * 3) Else match by reply sender (prospect email) and subject; return most recent sent, unreplied log.
+ */
+export async function findEmailLogForInboundReply(opts: {
+  from: string;
+  subject: string;
+  inReplyTo?: string | null;
+}): Promise<EmailLog | undefined> {
+  const db = getDb();
+  const { from, subject, inReplyTo } = opts;
+  const simulatorInbox = process.env.SIMULATOR_INBOX ?? null;
+
+  if (inReplyTo) {
+    const normalized = inReplyTo.replace(/^<|>$/g, '').trim();
+    const byId = await getEmailLogByMessageId(normalized);
+    if (byId) return byId;
+    const rows = await db.select().from(emailLogs)
+      .where(like(emailLogs.messageId, `%${normalized}%`))
+      .orderBy(desc(emailLogs.sentAt))
+      .limit(1);
+    if (rows[0]) return rows[0];
+  }
+
+  if (simulatorInbox && from === simulatorInbox) {
+    const subjStripped = subject.replace(/^re:\s*/i, '').trim().toLowerCase();
+    const rows = await db.select().from(emailLogs)
+      .where(and(
+        isNull(emailLogs.repliedAt),
+        sql`${emailLogs.sentAt} IS NOT NULL`,
+      ))
+      .orderBy(desc(emailLogs.sentAt))
+      .limit(10);
+    for (const log of rows) {
+      const logSubj = log.subject.toLowerCase();
+      if (subjStripped.includes(logSubj) || logSubj.includes(subjStripped)) return log;
+    }
+    if (rows[0]) return rows[0];
+  }
+
+  const rows = await db.select({ log: emailLogs })
+    .from(emailLogs)
+    .innerJoin(prospects, eq(emailLogs.prospectId, prospects.id))
+    .where(and(
+      sql`LOWER(${prospects.email}) = ${from}`,
+      isNull(emailLogs.repliedAt),
+      sql`${emailLogs.sentAt} IS NOT NULL`,
+    ))
+    .orderBy(desc(emailLogs.sentAt))
+    .limit(5);
+  const subjLower = subject.toLowerCase();
+  for (const { log } of rows) {
+    if (subjLower.includes(log.subject.toLowerCase()) || log.subject.toLowerCase().includes(subjLower.replace(/^re:\s*/i, '').trim())) {
+      return log;
+    }
+  }
+  return rows[0]?.log;
 }
 
 export async function updateEmailLogStatus(id: string, status: EmailStatus, extra?: {
@@ -211,6 +292,20 @@ export async function getEmailLogsByProspect(prospectId: string): Promise<EmailL
   return db.select().from(emailLogs)
     .where(eq(emailLogs.prospectId, prospectId))
     .orderBy(desc(emailLogs.sentAt));
+}
+
+/** Most recent sent email log for this prospect that has not been replied to. */
+export async function getLatestUnrepliedEmailLogForProspect(prospectId: string): Promise<EmailLog | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(emailLogs)
+    .where(and(
+      eq(emailLogs.prospectId, prospectId),
+      isNull(emailLogs.repliedAt),
+      sql`${emailLogs.sentAt} IS NOT NULL`,
+    ))
+    .orderBy(desc(emailLogs.sentAt))
+    .limit(1);
+  return rows[0];
 }
 
 export async function getEmailStats(): Promise<{
@@ -302,6 +397,30 @@ export async function getGeneratedSite(id: string): Promise<GeneratedSite | unde
   const db = getDb();
   const rows = await db.select().from(generatedSites).where(eq(generatedSites.id, id)).limit(1);
   return rows[0];
+}
+
+/** Sites that have a deploymentId and non-terminal status (generating or pending_review). */
+export async function listSitesWithPendingDeployments(limit = 100): Promise<GeneratedSite[]> {
+  const db = getDb();
+  const rows = await db.select()
+    .from(generatedSites)
+    .where(inArray(generatedSites.status, ['generating', 'pending_review']))
+    .orderBy(desc(generatedSites.generatedAt))
+    .limit(limit * 2);
+  const out: GeneratedSite[] = [];
+  for (const row of rows) {
+    if (out.length >= limit) break;
+    let meta: Record<string, unknown> = {};
+    if (row.metadata) {
+      try {
+        meta = JSON.parse(row.metadata) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+    }
+    if (meta.deploymentId) out.push(row);
+  }
+  return out;
 }
 
 export async function getSiteStats(): Promise<{

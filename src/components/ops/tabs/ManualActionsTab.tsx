@@ -28,6 +28,13 @@ const ACTIONS: ActionDef[] = [
     requiresProspectId: true,
   },
   {
+    action: 'simulate_reply',
+    label: 'Simulate Reply',
+    description: 'Process a simulated reply from a prospect (use the latest unreplied email). Parses intent and pushes through pipeline.',
+    requiresProspectId: true,
+    requiresBody: true,
+  },
+  {
     action: 'run_full_tick',
     label: 'Run Full Agent Tick',
     description: 'Run all agent workflows (discovery → outreach → follow-ups) in sequence, as if the cron fired.',
