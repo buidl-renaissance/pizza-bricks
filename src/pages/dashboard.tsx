@@ -5,6 +5,7 @@ import styled, { keyframes } from "styled-components";
 import { useRouter } from "next/router";
 import { useUser } from "@/contexts/UserContext";
 import { Loading } from "@/components/Loading";
+import type { PipelineResult } from "@/lib/site-pipeline";
 
 // App configuration - customize these
 const APP_NAME = "App Block";
@@ -95,7 +96,7 @@ const LogoutButton = styled.button`
   color: ${({ theme }) => theme.textMuted};
   cursor: pointer;
   transition: all 0.15s ease;
-  
+
   &:hover {
     color: ${({ theme }) => theme.text};
     border-color: ${({ theme }) => theme.textMuted};
@@ -168,7 +169,7 @@ const QuickLinkCard = styled(Link)`
   border-radius: 8px;
   text-decoration: none;
   transition: all 0.15s ease;
-  
+
   &:hover {
     border-color: ${({ theme }) => theme.accent};
     background: ${({ theme }) => theme.surfaceHover};
@@ -206,7 +207,7 @@ const InfoText = styled.p`
   color: ${({ theme }) => theme.textMuted};
   margin: 0;
   line-height: 1.6;
-  
+
   code {
     background: ${({ theme }) => theme.surface};
     padding: 0.15rem 0.4rem;
@@ -216,41 +217,206 @@ const InfoText = styled.p`
   }
 `;
 
-const DashboardPage: React.FC = () => {
+// ── Generate Website section ──────────────────────────────────────────────────
+
+const GenerateSection = styled.section`
+  margin-top: 2rem;
+`;
+
+const Textarea = styled.textarea`
+  width: 100%;
+  min-height: 160px;
+  padding: 0.875rem;
+  background: ${({ theme }) => theme.surface};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 8px;
+  color: ${({ theme }) => theme.text};
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: ${({ theme }) => theme.textMuted};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.accent};
+  }
+`;
+
+const GenerateButton = styled.button<{ $loading?: boolean }>`
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  background: ${({ theme, $loading }) =>
+    $loading ? theme.accentMuted : theme.accent};
+  color: ${({ theme }) => theme.background};
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: ${({ $loading }) => ($loading ? 'not-allowed' : 'pointer')};
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.accentHover};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ProgressText = styled.p`
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.textMuted};
+  font-style: italic;
+`;
+
+const ResultCard = styled.div`
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  background: ${({ theme }) => theme.surface};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: ${({ theme, $status }) =>
+    $status === 'READY'
+      ? `${theme.success}22`
+      : $status === 'ERROR'
+      ? `${theme.danger}22`
+      : `${theme.accent}22`};
+  color: ${({ theme, $status }) =>
+    $status === 'READY'
+      ? theme.success
+      : $status === 'ERROR'
+      ? theme.danger
+      : theme.accent};
+`;
+
+const ResultLink = styled.a`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  word-break: break-all;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const ErrorBox = styled.div`
+  margin-top: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: ${({ theme }) => theme.backgroundAlt};
+  border: 1px solid ${({ theme }) => theme.danger};
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.danger};
+  line-height: 1.5;
+`;
+
+const PLACEHOLDER_TEXT = `Maria's Homemade Tamales is a Detroit-based home catering business run by Maria Gonzalez. She specializes in authentic Mexican tamales, red salsa enchiladas, and horchata. She charges $12/dozen for tamales and $15 for a full enchilada plate. Available Friday–Sunday. Call 313-555-0199 or DM @mariasdetroit on Instagram.`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DashboardPageProps {
+  skipAuth?: boolean;
+}
+
+const DashboardPage: React.FC<DashboardPageProps> = ({ skipAuth = false }) => {
   const router = useRouter();
   const { user, isLoading: isUserLoading, signOut } = useUser();
   const [imageError, setImageError] = useState(false);
 
-  // Redirect to /app if not authenticated
+  // Generate Website state
+  const [documentText, setDocumentText] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateResult, setGenerateResult] = useState<PipelineResult | null>(null);
+  const [progressStage, setProgressStage] = useState('');
+
+  // Redirect to /app if not authenticated (unless SKIP_AUTH is true)
   useEffect(() => {
+    if (skipAuth) return;
     if (!isUserLoading && !user) {
       router.push('/app');
     }
-  }, [isUserLoading, user, router]);
+  }, [skipAuth, isUserLoading, user, router]);
 
   const handleLogout = async () => {
     await signOut();
     router.push('/');
   };
 
-  // Loading state
-  if (isUserLoading && !user) {
+  const handleGenerateSite = async () => {
+    if (!documentText.trim()) return;
+
+    setIsGenerating(true);
+    setGenerateError(null);
+    setGenerateResult(null);
+    setProgressStage('Extracting brand brief...');
+
+    try {
+      setProgressStage('Generating site (this takes 2–3 minutes)...');
+      const res = await fetch('/api/generate-site', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document: documentText.trim() }),
+      });
+
+      const data = await res.json() as { success?: boolean; result?: PipelineResult; error?: string };
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error ?? 'Generation failed');
+      }
+
+      setGenerateResult(data.result!);
+      setProgressStage('');
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Unknown error');
+      setProgressStage('');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Loading state (when auth required, wait for user; when skipAuth, show dashboard immediately)
+  if (!skipAuth && isUserLoading && !user) {
     return <Loading text="Loading..." />;
   }
 
-  if (!isUserLoading && !user) {
+  if (!skipAuth && !isUserLoading && !user) {
     return null;
   }
 
-  if (!user) {
+  if (!skipAuth && !user) {
     return null;
   }
 
-  const displayName = user.username || user.displayName || `User`;
+  const displayUser = user ?? { username: 'Guest', displayName: 'Guest', pfpUrl: null };
+  const displayName = displayUser.username || displayUser.displayName || 'Guest';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-  
+
   // Hide sign out for Renaissance-authenticated users (they manage auth in the parent app)
-  const isRenaissanceUser = !!user.renaissanceId;
+  const isRenaissanceUser = !!user?.renaissanceId;
 
   return (
     <Container>
@@ -265,9 +431,9 @@ const DashboardPage: React.FC = () => {
         <Header>
           <UserSection>
             <ProfileImageContainer>
-              {user.pfpUrl && !imageError ? (
+              {displayUser.pfpUrl && !imageError ? (
                 <ProfileImage
-                  src={user.pfpUrl}
+                  src={displayUser.pfpUrl}
                   alt={displayName}
                   onError={() => setImageError(true)}
                 />
@@ -278,7 +444,7 @@ const DashboardPage: React.FC = () => {
             <UserName>{displayName}</UserName>
           </UserSection>
           <HeaderRight>
-            {!isRenaissanceUser && (
+            {!isRenaissanceUser && user && (
               <LogoutButton onClick={handleLogout}>
                 Sign Out
               </LogoutButton>
@@ -287,7 +453,7 @@ const DashboardPage: React.FC = () => {
         </Header>
 
         <HeaderSpacer />
-        
+
         <ContentArea>
           <WelcomeCard>
             <WelcomeTitle>Welcome, {displayName}!</WelcomeTitle>
@@ -306,10 +472,59 @@ const DashboardPage: React.FC = () => {
               app entry page.
             </InfoText>
           </InfoBox>
+
+          {/* ── Generate Website ───────────────────────────────────────────── */}
+          <GenerateSection>
+            <SectionTitle>Generate Website</SectionTitle>
+            <Textarea
+              value={documentText}
+              onChange={(e) => setDocumentText(e.target.value)}
+              placeholder={PLACEHOLDER_TEXT}
+              disabled={isGenerating}
+            />
+            <GenerateButton
+              onClick={handleGenerateSite}
+              disabled={isGenerating || !documentText.trim()}
+              $loading={isGenerating}
+            >
+              {isGenerating ? 'Generating...' : 'Generate Site'}
+            </GenerateButton>
+
+            {isGenerating && progressStage && (
+              <ProgressText>{progressStage}</ProgressText>
+            )}
+
+            {generateResult && (
+              <ResultCard>
+                <StatusBadge $status={generateResult.status}>
+                  {generateResult.status}
+                </StatusBadge>
+                <ResultLink
+                  href={generateResult.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {generateResult.url}
+                </ResultLink>
+              </ResultCard>
+            )}
+
+            {generateError && (
+              <ErrorBox>{generateError}</ErrorBox>
+            )}
+          </GenerateSection>
         </ContentArea>
       </Main>
     </Container>
   );
+};
+
+export const getServerSideProps = async () => {
+  return {
+    props: {
+      skipAuth: process.env.SKIP_AUTH === 'true',
+    },
+  };
 };
 
 export default DashboardPage;
