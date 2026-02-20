@@ -153,10 +153,7 @@ export default function PizzaCollectiblePage({ collectible, notFound }: PageProp
           </GeoBadge>
         )}
         <FloatingPizzaViewer
-          modelUrl={collectible.modelUrl}
-          iosModelUrl={collectible.iosModelUrl}
           alt={collectible.displayName}
-          ar={true}
           floating={true}
         />
         {collectible.description && (
