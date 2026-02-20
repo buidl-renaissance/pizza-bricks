@@ -106,11 +106,11 @@ const BackLink = styled(Link)`
   &:hover { color: ${({ theme }) => theme.text}; }
 `;
 
-const Content = styled.main`
+const Content = styled.main<{ $fullWidth?: boolean }>`
   margin-left: 200px;
   flex: 1;
   padding: 2rem 2.5rem;
-  max-width: 1100px;
+  max-width: ${({ $fullWidth }) => ($fullWidth ? 'none' : '1100px')};
 `;
 
 const ContentHeader = styled.div`
@@ -133,7 +133,7 @@ export function OpsShell() {
     <Shell>
       <Sidebar>
         <SidebarHeader>
-          <AppName>eThembre</AppName>
+          <AppName>Bricks</AppName>
           <PageTitle>Ops Dashboard</PageTitle>
         </SidebarHeader>
 
@@ -157,7 +157,7 @@ export function OpsShell() {
         <BackLink href="/dashboard">&larr; Dashboard</BackLink>
       </Sidebar>
 
-      <Content>
+      <Content $fullWidth={activeTab === 'pipeline'}>
         <ContentHeader>
           <TabTitle>{currentTab.label}</TabTitle>
         </ContentHeader>

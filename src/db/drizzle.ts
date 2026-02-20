@@ -1,3 +1,5 @@
+import path from 'path';
+import { existsSync } from 'fs';
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 import { config } from 'dotenv';
@@ -6,6 +8,14 @@ import * as schema from './schema';
 // Load environment variables from .env.local or .env
 config({ path: '.env.local' });
 config({ path: '.env' });
+
+// Resolve local DB path so it matches where drizzle-kit push writes (same dir as package.json)
+function getLocalDbPath(): string {
+  const cwd = process.cwd();
+  const inMonorepo = path.join(cwd, 'app-blocks', 'pizza-bricks', 'package.json');
+  const dbDir = existsSync(inMonorepo) ? path.join(cwd, 'app-blocks', 'pizza-bricks') : cwd;
+  return path.join(dbDir, 'dev.sqlite3');
+}
 
 // Create Turso client with singleton pattern for Next.js hot reloading
 let tursoClient: ReturnType<typeof createClient> | null = null;
@@ -22,7 +32,8 @@ function getTursoClient() {
 
   // Use local file-based SQLite if USE_LOCAL is set or no auth token
   if (useLocal || !authToken) {
-    const localUrl = 'file:./dev.sqlite3';
+    const localPath = getLocalDbPath();
+    const localUrl = `file:${localPath}`;
     console.log('📁 Using local SQLite database:', localUrl);
     tursoClient = createClient({ url: localUrl });
   } else {

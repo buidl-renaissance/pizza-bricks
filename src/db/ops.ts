@@ -281,6 +281,29 @@ export async function updateGeneratedSite(id: string, data: Partial<{
   await db.update(generatedSites).set(update).where(eq(generatedSites.id, id));
 }
 
+export async function listGeneratedSites(opts: {
+  prospectId?: string;
+  status?: GeneratedSiteStatus;
+  limit?: number;
+} = {}): Promise<GeneratedSite[]> {
+  const db = getDb();
+  const { prospectId, status, limit = 50 } = opts;
+  const conditions = [];
+  if (prospectId) conditions.push(eq(generatedSites.prospectId, prospectId));
+  if (status) conditions.push(eq(generatedSites.status, status));
+  const query = db.select().from(generatedSites)
+    .orderBy(desc(generatedSites.generatedAt))
+    .limit(limit);
+  if (conditions.length > 0) return query.where(and(...conditions));
+  return query;
+}
+
+export async function getGeneratedSite(id: string): Promise<GeneratedSite | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(generatedSites).where(eq(generatedSites.id, id)).limit(1);
+  return rows[0];
+}
+
 export async function getSiteStats(): Promise<{
   total: number;
   published: number;

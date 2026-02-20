@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import { useProspects } from '@/hooks/useOpsData';
+import React, { useState, useEffect, useCallback } from 'react';
+import styled, { keyframes } from 'styled-components';
+import { useProspects, useSites } from '@/hooks/useOpsData';
 import type { PipelineStage } from '@/db/schema';
-import type { Prospect } from '@/db/ops';
+import type { Prospect, GeneratedSite } from '@/db/ops';
+import type { EnrichedSite } from '@/hooks/useOpsData';
 
 const STAGES: PipelineStage[] = ['discovered', 'contacted', 'engaged', 'onboarding', 'converted', 'churned'];
 
 const STAGE_COLORS: Record<PipelineStage, string> = {
   discovered: '#7B5CFF',
-  contacted: '#3B82F6',
-  engaged: '#06B6D4',
+  contacted:  '#3B82F6',
+  engaged:    '#06B6D4',
   onboarding: '#F59E0B',
-  converted: '#22C55E',
-  churned: '#6B7280',
+  converted:  '#22C55E',
+  churned:    '#6B7280',
 };
+
+const spin = keyframes`from { transform: rotate(0deg); } to { transform: rotate(360deg); }`;
+
+// ── Layout ────────────────────────────────────────────────────────────────────
 
 const Board = styled.div`
   display: flex;
@@ -23,7 +28,7 @@ const Board = styled.div`
 `;
 
 const Column = styled.div`
-  min-width: 200px;
+  min-width: 210px;
   flex-shrink: 0;
 `;
 
@@ -59,17 +64,16 @@ const Cards = styled.div`
   gap: 0.5rem;
 `;
 
-const ProspectCard = styled.div`
+// ── Prospect Card ─────────────────────────────────────────────────────────────
+
+const Card = styled.div`
   background: ${({ theme }) => theme.surface};
   border: 1px solid ${({ theme }) => theme.border};
   border-radius: 8px;
   padding: 0.875rem;
   cursor: pointer;
   transition: border-color 0.15s ease;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.accent};
-  }
+  &:hover { border-color: ${({ theme }) => theme.accent}; }
 `;
 
 const ProspectName = styled.p`
@@ -107,8 +111,114 @@ const StageSelect = styled.select`
   cursor: pointer;
 `;
 
-function ProspectCardItem({ prospect, onStageChange }: { prospect: Prospect; onStageChange: (id: string, stage: PipelineStage) => void }) {
+const Divider = styled.div`
+  margin: 0.625rem 0;
+  border-top: 1px solid ${({ theme }) => theme.border};
+`;
+
+// ── Site Status on card ────────────────────────────────────────────────────────
+
+const SiteRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const SiteStatusDot = styled.span<{ $status: string }>`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: ${({ theme, $status }) =>
+    $status === 'published' ? theme.success :
+    $status === 'generating' ? theme.accent :
+    $status === 'revision_requested' ? theme.danger :
+    theme.warning};
+  ${({ $status }) => $status === 'generating' && `animation: ${spin} 1s linear infinite;`}
+`;
+
+const SiteStatusLabel = styled.span<{ $status: string }>`
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: ${({ theme, $status }) =>
+    $status === 'published' ? theme.success :
+    $status === 'generating' ? theme.accent :
+    $status === 'revision_requested' ? theme.danger :
+    theme.warning};
+  flex: 1;
+`;
+
+const ViewBtn = styled.a`
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid ${({ theme }) => theme.accent};
+  border-radius: 4px;
+  transition: all 0.12s ease;
+  &:hover { background: ${({ theme }) => theme.accentMuted}; }
+`;
+
+const GenBtn = styled.button<{ $loading?: boolean }>`
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.35rem;
+  background: transparent;
+  border: 1px dashed ${({ theme }) => theme.border};
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.textMuted};
+  cursor: ${({ $loading }) => $loading ? 'wait' : 'pointer'};
+  transition: all 0.12s ease;
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.accent};
+    color: ${({ theme }) => theme.accent};
+  }
+  &:disabled { opacity: 0.6; }
+`;
+
+// STATUS_LABELS for card badge
+const STATUS_LABELS: Record<string, string> = {
+  generating: 'Generating…',
+  pending_review: 'Pending Review',
+  published: 'Published',
+  revision_requested: 'Revision Needed',
+  archived: 'Archived',
+};
+
+// ── Card with site awareness ──────────────────────────────────────────────────
+
+interface ProspectCardProps {
+  prospect: Prospect;
+  site: EnrichedSite | undefined;
+  onStageChange: (id: string, stage: PipelineStage) => void;
+  onSiteGenerated: () => void;
+}
+
+function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated }: ProspectCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  // Poll site state if generating
+  const [polledSite, setPolledSite] = useState<EnrichedSite | null>(null);
+
+  const currentSite = polledSite ?? site;
+
+  // Poll while generating
+  useEffect(() => {
+    if (!currentSite || currentSite.status !== 'generating') return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/ops/sites/${currentSite.id}`);
+      if (res.ok) {
+        const d = await res.json() as { site: EnrichedSite };
+        setPolledSite(d.site);
+        if (d.site.status !== 'generating') onSiteGenerated();
+      }
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [currentSite, onSiteGenerated]);
 
   const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const stage = e.target.value as PipelineStage;
@@ -120,40 +230,108 @@ function ProspectCardItem({ prospect, onStageChange }: { prospect: Prospect; onS
     onStageChange(prospect.id, stage);
   };
 
+  const handleGenerateSite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/ops/actions/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate_site', prospectId: prospect.id }),
+      });
+      if (res.ok) {
+        // Refresh to pick up the new generating record
+        setTimeout(onSiteGenerated, 800);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
-    <ProspectCard onClick={() => setExpanded(x => !x)}>
+    <Card onClick={() => setExpanded(x => !x)}>
       <ProspectName>{prospect.name}</ProspectName>
       <ProspectMeta>
         <TypeBadge>{prospect.type}</TypeBadge>
         {prospect.city && ` · ${prospect.city}`}
       </ProspectMeta>
       {prospect.email && <ProspectMeta style={{ marginTop: 4 }}>{prospect.email}</ProspectMeta>}
-      {expanded && (
-        <StageSelect
-          value={prospect.pipelineStage}
-          onClick={e => e.stopPropagation()}
-          onChange={handleStageChange}
-        >
-          {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-        </StageSelect>
+
+      {/* Site status badge */}
+      {currentSite && (
+        <SiteRow>
+          <SiteStatusDot $status={currentSite.status} />
+          <SiteStatusLabel $status={currentSite.status}>
+            {STATUS_LABELS[currentSite.status] ?? currentSite.status}
+          </SiteStatusLabel>
+          {currentSite.url && (
+            <ViewBtn
+              href={currentSite.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+            >
+              View ↗
+            </ViewBtn>
+          )}
+        </SiteRow>
       )}
-    </ProspectCard>
+
+      {expanded && (
+        <>
+          <Divider />
+          <StageSelect
+            value={prospect.pipelineStage}
+            onClick={e => e.stopPropagation()}
+            onChange={handleStageChange}
+          >
+            {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+          </StageSelect>
+
+          {!currentSite && (
+            <GenBtn
+              $loading={generating}
+              disabled={generating}
+              onClick={handleGenerateSite}
+            >
+              {generating ? 'Starting…' : '+ Generate Site'}
+            </GenBtn>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
 
-export function PipelineTab() {
-  const { prospects, reload } = useProspects({ limit: 200 });
-  const [localProspects, setLocalProspects] = React.useState<Prospect[]>([]);
+// ── Main Tab ──────────────────────────────────────────────────────────────────
 
-  React.useEffect(() => {
-    setLocalProspects(prospects);
-  }, [prospects]);
+export function PipelineTab() {
+  const { prospects, reload: reloadProspects } = useProspects({ limit: 200 });
+  const { sites, reload: reloadSites } = useSites();
+  const [localProspects, setLocalProspects] = useState<Prospect[]>([]);
+
+  useEffect(() => { setLocalProspects(prospects); }, [prospects]);
+
+  // Map prospectId → latest site
+  const siteByProspect = React.useMemo(() => {
+    const map = new Map<string, EnrichedSite>();
+    for (const s of sites) {
+      const existing = map.get(s.prospectId);
+      // Prefer non-archived, most recent
+      if (!existing || new Date(s.generatedAt) > new Date(existing.generatedAt)) {
+        map.set(s.prospectId, s);
+      }
+    }
+    return map;
+  }, [sites]);
 
   const handleStageChange = (id: string, stage: PipelineStage) => {
-    setLocalProspects(prev =>
-      prev.map(p => p.id === id ? { ...p, pipelineStage: stage } : p)
-    );
+    setLocalProspects(prev => prev.map(p => p.id === id ? { ...p, pipelineStage: stage } : p));
   };
+
+  const handleSiteUpdate = useCallback(() => {
+    reloadSites();
+  }, [reloadSites]);
 
   return (
     <Board>
@@ -167,7 +345,13 @@ export function PipelineTab() {
             </ColumnHeader>
             <Cards>
               {stageProspects.map(p => (
-                <ProspectCardItem key={p.id} prospect={p} onStageChange={handleStageChange} />
+                <ProspectCardItem
+                  key={p.id}
+                  prospect={p}
+                  site={siteByProspect.get(p.id)}
+                  onStageChange={handleStageChange}
+                  onSiteGenerated={handleSiteUpdate}
+                />
               ))}
             </Cards>
           </Column>

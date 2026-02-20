@@ -12,7 +12,7 @@ export default function OpsPage({ skipAuth }: OpsPageProps) {
   return (
     <>
       <Head>
-        <title>Ops Dashboard | eThembre</title>
+        <title>Ops Dashboard | Bricks</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
       <OpsShell />

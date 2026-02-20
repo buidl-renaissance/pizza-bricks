@@ -11,7 +11,7 @@ import {
 import { getTemplateByStep } from '@/lib/agent/email-templates';
 import { Resend } from 'resend';
 
-const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'eThembre <onboarding@resend.dev>';
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'Bricks <bricks@builddetroit.xyz>';
 
 // Days to wait between sequence steps
 const STEP_DELAYS_DAYS: Record<number, number> = {

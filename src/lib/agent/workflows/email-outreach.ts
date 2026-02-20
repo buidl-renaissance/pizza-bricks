@@ -9,7 +9,7 @@ import {
 } from '@/db/ops';
 import { getTemplate } from '@/lib/agent/email-templates';
 
-const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'eThembre <onboarding@resend.dev>';
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL ?? 'Bricks <bricks@builddetroit.xyz>';
 const MAX_STEP = 1; // cold outreach only; follow-up runs separately
 
 interface EmailConfig {

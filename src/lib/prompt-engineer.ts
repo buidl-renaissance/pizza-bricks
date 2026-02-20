@@ -62,6 +62,7 @@ Technical requirements:
 - Mobile-first responsive design
 - Proper JSON string escaping: use \\n for newlines inside string values, escape all quotes with \\"
 - package.json must include: next, react, react-dom, typescript, tailwindcss, postcss, autoprefixer
+- CRITICAL JSX RULE: Every React component's return() must have EXACTLY ONE root element. Always wrap multiple siblings in a Fragment: return (<>...</>) — never return two or more sibling elements without a wrapper
 
 Design requirements:
 - Primary CTA: "${variant.ctaPrimary}"

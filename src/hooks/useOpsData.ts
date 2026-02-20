@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
-import type { ActivityEvent, Prospect, AgentStateRow } from '@/db/ops';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import type { ActivityEvent, Prospect, AgentStateRow, GeneratedSite } from '@/db/ops';
 import type { Alert } from '@/lib/agent/workflows/alerts';
-import type { PipelineStage } from '@/db/schema';
+import type { PipelineStage, GeneratedSiteStatus } from '@/db/schema';
+
+export type EnrichedSite = GeneratedSite & { prospectName: string };
 
 async function apiFetch<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -167,6 +169,61 @@ export function useProspects(opts: { stage?: PipelineStage; limit?: number } = {
 
   useEffect(() => { reload(); }, [reload]);
   return { prospects, loading, reload };
+}
+
+// ── Sites ─────────────────────────────────────────────────────────────────────
+
+export function useSites(opts: { prospectId?: string; status?: GeneratedSiteStatus } = {}) {
+  const [sites, setSites] = useState<EnrichedSite[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (opts.prospectId) params.set('prospectId', opts.prospectId);
+      if (opts.status) params.set('status', opts.status);
+      const d = await apiFetch<{ sites: EnrichedSite[] }>(`/api/ops/sites?${params}`);
+      setSites(d.sites);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [opts.prospectId, opts.status]);
+
+  useEffect(() => { reload(); }, [reload]);
+  return { sites, loading, reload };
+}
+
+/**
+ * Polls a single site every `intervalMs` while status is 'generating'.
+ * Stops automatically once the status reaches a terminal state.
+ */
+export function useSiteStatus(siteId: string | null, intervalMs = 5000) {
+  const [site, setSite] = useState<EnrichedSite | null>(null);
+  const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const poll = useCallback(async () => {
+    if (!siteId) return;
+    try {
+      const d = await apiFetch<{ site: EnrichedSite }>(`/api/ops/sites/${siteId}`);
+      setSite(d.site);
+      setLoading(false);
+      if (d.site.status === 'generating') {
+        timerRef.current = setTimeout(poll, intervalMs);
+      }
+    } catch {
+      setLoading(false);
+    }
+  }, [siteId, intervalMs]);
+
+  useEffect(() => {
+    if (!siteId) return;
+    setLoading(true);
+    poll();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [siteId, poll]);
+
+  return { site, loading };
 }
 
 export function useActionHistory() {

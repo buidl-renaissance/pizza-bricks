@@ -101,8 +101,6 @@ export async function extractBrandBrief(document: string): Promise<BrandBrief> {
   const response = await client.messages.create({
     model: 'claude-opus-4-6',
     max_tokens: 8096,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    thinking: { type: 'enabled', budget_tokens: 4000 } as any,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: document }],
     tools: [

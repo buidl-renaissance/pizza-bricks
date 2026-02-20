@@ -94,31 +94,61 @@ function injectIntoIndexPage(content: string, brief: BrandBrief): string {
 }
 
 function injectAnalyticsIntoApp(content: string): string {
-  // Add Analytics import at top (after existing imports)
+  if (content.includes('@vercel/analytics')) return content;
+
+  // Add Analytics import after last existing import
   let result = content;
-
-  if (!result.includes('@vercel/analytics')) {
-    // Find last import line and insert after it
-    const lastImportIdx = result.lastIndexOf("import ");
-    const lineEnd = result.indexOf('\n', lastImportIdx);
-    if (lineEnd !== -1) {
-      result =
-        result.slice(0, lineEnd + 1) +
-        `import { Analytics } from '@vercel/analytics/react';\n` +
-        result.slice(lineEnd + 1);
-    }
-
-    // Inject <Analytics /> before the closing of the Component render
-    // Try common patterns: before </>, before </main>, or append before last return closing
-    if (result.includes('<Component')) {
-      result = result.replace(
-        /(<Component\s[^/]*\/>|<Component\s[^>]*>)/,
-        (match) => `${match}\n      <Analytics />`
-      );
-    }
+  const lastImportIdx = result.lastIndexOf('import ');
+  const lineEnd = result.indexOf('\n', lastImportIdx);
+  if (lineEnd !== -1) {
+    result =
+      result.slice(0, lineEnd + 1) +
+      `import { Analytics } from '@vercel/analytics/react';\n` +
+      result.slice(lineEnd + 1);
   }
 
+  // Wrap the return value in a Fragment and append <Analytics />.
+  // Handles both `return <Component ... />` and `return (\n  <Component ... />\n)`.
+  // Self-closing: return <Component {...pageProps} />
+  result = result.replace(
+    /(\breturn\s*)\(<?\s*\n?\s*(<Component[^>]*\/>)\s*\n?\s*\)([;\s]*\})/,
+    (_m, ret, comp, tail) =>
+      `${ret}(\n    <>\n      ${comp}\n      <Analytics />\n    </>\n  )${tail}`
+  );
+  // Without parens: return <Component ... />;
+  result = result.replace(
+    /(\breturn\s*)(<Component[^>]*\/>)([;\s]*\n)/,
+    (_m, ret, comp, tail) =>
+      `${ret}(\n    <>\n      ${comp}\n      <Analytics />\n    </>\n  );\n`
+  );
+
   return result;
+}
+
+/**
+ * Detects "JSX expressions must have one parent element" at compile time by
+ * finding return statements that start with two consecutive JSX open-tags at
+ * the same indent level, and wraps them in a React Fragment.
+ * This is a best-effort safeguard — it handles the most common pattern.
+ */
+function fixMultiRootJsx(content: string): string {
+  // Pattern: `return (\n  <Foo`, immediately followed (after the block) by
+  // another top-level JSX tag before the closing `)` of the return.
+  // Simplest reliable heuristic: if the file has `return (` where the very
+  // next non-whitespace chars are `<` AND there's a sibling `<` at the same
+  // indentation level, wrap in Fragment.
+  //
+  // We detect the symptom: a return statement whose parenthesised body contains
+  // two or more JSX root elements (consecutive `<Foo` at the same leading
+  // indent after the opening paren).
+  return content.replace(
+    /(\breturn\s*\()(\s*\n)([ \t]*)(<[A-Z][\w.]*|<[a-z][\w.]*)([\s\S]*?)(\3<[A-Z][\w.]*|<[a-z][\w.]*[\s>])([\s\S]*?)(\s*\))/g,
+    (match, open, nl, indent, firstTag, mid, secondTag, rest, close) => {
+      // Only wrap if there's no existing Fragment at the start
+      if (firstTag.trim() === '<>' || firstTag.trim() === '<React.Fragment') return match;
+      return `${open}${nl}${indent}<>\n${indent}  ${firstTag}${mid}${secondTag}${rest}\n${indent}</>${close}`;
+    }
+  );
 }
 
 function injectAnalyticsDependency(content: string): string {
@@ -141,15 +171,21 @@ export function postProcess(
   options: PostProcessorOptions
 ): GeneratedFile[] {
   return files.map((file) => {
+    // Apply JSX multi-root fix to all TSX/JSX files
+    let content = file.content;
+    if (file.path.endsWith('.tsx') || file.path.endsWith('.jsx')) {
+      content = fixMultiRootJsx(content);
+    }
+
     if (file.path === 'pages/index.tsx') {
-      return { ...file, content: injectIntoIndexPage(file.content, options.brief) };
+      return { ...file, content: injectIntoIndexPage(content, options.brief) };
     }
     if (file.path === 'pages/_app.tsx') {
-      return { ...file, content: injectAnalyticsIntoApp(file.content) };
+      return { ...file, content: injectAnalyticsIntoApp(content) };
     }
     if (file.path === 'package.json') {
-      return { ...file, content: injectAnalyticsDependency(file.content) };
+      return { ...file, content: injectAnalyticsDependency(content) };
     }
-    return file;
+    return { ...file, content };
   });
 }

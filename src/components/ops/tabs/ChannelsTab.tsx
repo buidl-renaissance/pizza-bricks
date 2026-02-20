@@ -1,11 +1,14 @@
 import React from 'react';
 import styled from 'styled-components';
-import { useChannelStats } from '@/hooks/useOpsData';
+import { useChannelStats, useSites, useSiteStatus } from '@/hooks/useOpsData';
+import { SiteStatusCard } from '../shared/SiteStatusCard';
+import type { EnrichedSite } from '@/hooks/useOpsData';
 
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
+  margin-bottom: 2rem;
 `;
 
 const ChannelCard = styled.div`
@@ -67,97 +70,167 @@ const RatePill = styled.span<{ $good: boolean }>`
   color: ${({ theme, $good }) => $good ? theme.success : theme.warning};
 `;
 
+const SectionTitle = styled.h2`
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.textMuted};
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 0.875rem;
+`;
+
+const SitesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const RefreshBtn = styled.button`
+  font-size: 0.72rem;
+  color: ${({ theme }) => theme.textMuted};
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.75rem;
+  &:hover { color: ${({ theme }) => theme.text}; }
+`;
+
+// Wrapper that auto-polls while generating
+function LiveSiteCard({ site, onDone }: { site: EnrichedSite; onDone: () => void }) {
+  const needsPoll = site.status === 'generating';
+  const { site: polled } = useSiteStatus(needsPoll ? site.id : null, 5000);
+
+  const displayed = polled ?? site;
+
+  // Notify parent when generation finishes so stats can refresh
+  React.useEffect(() => {
+    if (polled && polled.status !== 'generating') {
+      onDone();
+    }
+  }, [polled, onDone]);
+
+  return <SiteStatusCard site={displayed} />;
+}
+
 export function ChannelsTab() {
-  const { data, loading } = useChannelStats();
+  const { data, loading, reload: reloadStats } = useChannelStats();
+  const { sites, loading: sitesLoading, reload: reloadSites } = useSites();
+
+  const handleSiteDone = React.useCallback(() => {
+    reloadSites();
+    reloadStats();
+  }, [reloadSites, reloadStats]);
 
   if (loading) {
     return <p style={{ color: '#6B7280', fontSize: '0.85rem' }}>Loading channel stats...</p>;
   }
 
   return (
-    <Grid>
-      <ChannelCard>
-        <ChannelHeader>
-          <ChannelIcon>📧</ChannelIcon>
-          <ChannelName>Email Outreach</ChannelName>
-        </ChannelHeader>
-        <StatGrid>
-          <Stat>
-            <StatLabel>Total Sent</StatLabel>
-            <StatValue>{data?.email.sent ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Open Rate</StatLabel>
-            <StatValue>
-              {data?.email.openRate ?? 0}%
-              <RatePill $good={(data?.email.openRate ?? 0) >= 20} style={{ marginLeft: 8 }}>
-                {(data?.email.openRate ?? 0) >= 20 ? 'Good' : 'Low'}
-              </RatePill>
-            </StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Replies</StatLabel>
-            <StatValue>{data?.email.replied ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Reply Rate</StatLabel>
-            <StatValue>{data?.email.replyRate ?? 0}%</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Bounced</StatLabel>
-            <StatValue>{data?.email.bounced ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Opened</StatLabel>
-            <StatValue>{data?.email.opened ?? 0}</StatValue>
-          </Stat>
-        </StatGrid>
-      </ChannelCard>
+    <div>
+      <Grid>
+        <ChannelCard>
+          <ChannelHeader>
+            <ChannelIcon>📧</ChannelIcon>
+            <ChannelName>Email Outreach</ChannelName>
+          </ChannelHeader>
+          <StatGrid>
+            <Stat>
+              <StatLabel>Total Sent</StatLabel>
+              <StatValue>{data?.email.sent ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Open Rate</StatLabel>
+              <StatValue>
+                {data?.email.openRate ?? 0}%
+                <RatePill $good={(data?.email.openRate ?? 0) >= 20} style={{ marginLeft: 8 }}>
+                  {(data?.email.openRate ?? 0) >= 20 ? 'Good' : 'Low'}
+                </RatePill>
+              </StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Replies</StatLabel>
+              <StatValue>{data?.email.replied ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Reply Rate</StatLabel>
+              <StatValue>{data?.email.replyRate ?? 0}%</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Bounced</StatLabel>
+              <StatValue>{data?.email.bounced ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Opened</StatLabel>
+              <StatValue>{data?.email.opened ?? 0}</StatValue>
+            </Stat>
+          </StatGrid>
+        </ChannelCard>
 
-      <ChannelCard>
-        <ChannelHeader>
-          <ChannelIcon>🌐</ChannelIcon>
-          <ChannelName>Site Generation</ChannelName>
-        </ChannelHeader>
-        <StatGrid>
-          <Stat>
-            <StatLabel>Total Sites</StatLabel>
-            <StatValue>{data?.sites.total ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Published</StatLabel>
-            <StatValue>{data?.sites.published ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Generating</StatLabel>
-            <StatValue>{data?.sites.generating ?? 0}</StatValue>
-          </Stat>
-        </StatGrid>
-      </ChannelCard>
+        <ChannelCard>
+          <ChannelHeader>
+            <ChannelIcon>🌐</ChannelIcon>
+            <ChannelName>Site Generation</ChannelName>
+          </ChannelHeader>
+          <StatGrid>
+            <Stat>
+              <StatLabel>Total Sites</StatLabel>
+              <StatValue>{data?.sites.total ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Published</StatLabel>
+              <StatValue>{data?.sites.published ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Generating</StatLabel>
+              <StatValue>{data?.sites.generating ?? 0}</StatValue>
+            </Stat>
+          </StatGrid>
+        </ChannelCard>
 
-      <ChannelCard>
-        <ChannelHeader>
-          <ChannelIcon>💬</ChannelIcon>
-          <ChannelName>Chatbot</ChannelName>
-        </ChannelHeader>
-        <StatGrid>
-          <Stat>
-            <StatLabel>Conversations</StatLabel>
-            <StatValue>{data?.chatbot.conversations ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Leads</StatLabel>
-            <StatValue>{data?.chatbot.leads ?? 0}</StatValue>
-          </Stat>
-          <Stat>
-            <StatLabel>Conversion</StatLabel>
-            <StatValue>{data?.chatbot.conversionRate ?? 0}%</StatValue>
-          </Stat>
-        </StatGrid>
-        <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.875rem', marginBottom: 0 }}>
-          Chatbot integration coming soon.
-        </p>
-      </ChannelCard>
-    </Grid>
+        <ChannelCard>
+          <ChannelHeader>
+            <ChannelIcon>💬</ChannelIcon>
+            <ChannelName>Chatbot</ChannelName>
+          </ChannelHeader>
+          <StatGrid>
+            <Stat>
+              <StatLabel>Conversations</StatLabel>
+              <StatValue>{data?.chatbot.conversations ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Leads</StatLabel>
+              <StatValue>{data?.chatbot.leads ?? 0}</StatValue>
+            </Stat>
+            <Stat>
+              <StatLabel>Conversion</StatLabel>
+              <StatValue>{data?.chatbot.conversionRate ?? 0}%</StatValue>
+            </Stat>
+          </StatGrid>
+          <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.875rem', marginBottom: 0 }}>
+            Chatbot integration coming soon.
+          </p>
+        </ChannelCard>
+      </Grid>
+
+      <SectionTitle>
+        Generated Sites
+        <RefreshBtn onClick={reloadSites}>↻ Refresh</RefreshBtn>
+      </SectionTitle>
+
+      <SitesList>
+        {sitesLoading ? (
+          <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: 0 }}>Loading...</p>
+        ) : sites.length === 0 ? (
+          <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: 0 }}>
+            No sites generated yet. Use Manual Actions → Generate Site to start one.
+          </p>
+        ) : (
+          sites.map(s => (
+            <LiveSiteCard key={s.id} site={s} onDone={handleSiteDone} />
+          ))
+        )}
+      </SitesList>
+    </div>
   );
 }

@@ -78,6 +78,6 @@ function buildProspectDocument(prospect: Awaited<ReturnType<typeof getProspect>>
   if (prospect.address) parts.push(`Address: ${prospect.address}.`);
   if (prospect.phone) parts.push(`Phone: ${prospect.phone}.`);
   if (prospect.email) parts.push(`Email: ${prospect.email}.`);
-  parts.push('They are joining the eThembre blockchain platform to accept online orders and offer a crypto-backed loyalty program.');
+  parts.push('They are joining the Bricks platform to accept online orders and offer a crypto-backed loyalty program.');
   return parts.join(' ');
 }
