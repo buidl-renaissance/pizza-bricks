@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import styled, { keyframes } from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 
 const spin = keyframes`
   0% { transform: rotate(0deg) scale(1); }
@@ -33,7 +33,7 @@ const ViewerWrap = styled.div`
 const PizzaContainer = styled.div<{ $floating?: boolean }>`
   position: relative;
   animation: ${({ $floating }) =>
-    $floating !== false ? `${float} 3s ease-in-out infinite` : "none"};
+    $floating !== false ? css`${float} 3s ease-in-out infinite` : "none"};
 `;
 
 const PizzaImage = styled.div`
