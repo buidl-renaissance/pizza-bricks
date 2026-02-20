@@ -39,6 +39,18 @@ const COLLECTIBLES: CollectibleConfig[] = [
     },
   },
   {
+    id: "denver",
+    modelUrl: "/models/pizza.glb",
+    displayName: "City Wide Activation",
+    description: "A collectible City Wide Activation pizza.",
+    geo: {
+      latitude: 39.7392,
+      longitude: -104.9903,
+      radiusMeters: 15000,
+      placeName: "Denver, CO",
+    },
+  },
+  {
     id: "default",
     modelUrl: "/models/pizza.glb",
     displayName: "Classic Slice",
