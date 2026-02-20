@@ -164,42 +164,51 @@ const CtaRow = styled.div`
   }
 `;
 
+/* Primary: vibrant red, white text, elevated shadow - matching reference */
 const PrimaryButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.875rem 2rem;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
   font-size: 1.125rem;
   font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
-  color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
-  background: ${({ theme }) => theme.accent};
-  border-radius: ${({ theme }) => theme.borderRadius};
+  font-family: "DM Sans", sans-serif;
+  color: #FFFFFF;
+  background: #CE2828;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(206, 40, 40, 0.35);
   text-decoration: none;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
   &:hover {
-    background: ${({ theme }) => theme.accentHover};
-    color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
+    background: #B82222;
+    box-shadow: 0 6px 18px rgba(206, 40, 40, 0.4);
+    color: #FFFFFF;
   }
 `;
 
+/* Secondary: light beige, dark text, subtle border - matching reference */
 const SecondaryButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.875rem 2rem;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
   font-size: 1.125rem;
   font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
-  color: ${({ theme }) => theme.text};
-  background: ${({ theme }) => theme.surface};
-  border: 2px solid ${({ theme }) => theme.border};
-  border-radius: ${({ theme }) => theme.borderRadius};
+  font-family: "DM Sans", sans-serif;
+  color: #281E14;
+  background: #FDF8F3;
+  border: 1px solid rgba(108, 99, 91, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   text-decoration: none;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color 0.2s, background 0.2s;
   &:hover {
-    border-color: ${({ theme }) => theme.accent};
-    color: ${({ theme }) => theme.accent};
+    border-color: rgba(108, 99, 91, 0.35);
+    background: #FCF5EF;
+    color: #281E14;
   }
 `;
 
@@ -209,15 +218,20 @@ const CitiesRow = styled.div`
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.875rem;
-  color: ${({ theme }) => theme.textMuted};
+  color: #4A3C35;
+  margin-top: 1.25rem;
   @media (min-width: 1024px) {
     justify-content: flex-start;
   }
-  span:last-child {
-    color: ${({ theme }) => theme.accent};
-    font-weight: 600;
-  }
+`;
+
+const CityItem = styled.span``;
+
+const CitiesNote = styled.span`
+  color: #CE2828;
+  font-weight: 600;
 `;
 
 const ImageColumn = styled.div`
@@ -347,11 +361,14 @@ export const CommunityHero: React.FC = () => {
             <PrimaryButton href="#join-pod">{c.ctaPrimary}</PrimaryButton>
             <SecondaryButton href="/business">{c.ctaSecondary}</SecondaryButton>
           </CtaRow>
-          {c.statsLine && (
-            <CitiesRow>
-              <span>{c.statsLine}</span>
-            </CitiesRow>
-          )}
+          <CitiesRow>
+            {c.cities.map((city) => (
+              <CityItem key={city.name}>
+                {city.emoji} {city.name}
+              </CityItem>
+            ))}
+            <CitiesNote>{c.citiesNote}</CitiesNote>
+          </CitiesRow>
         </TextColumn>
         <ImageColumn>
           <ImageWrap>
