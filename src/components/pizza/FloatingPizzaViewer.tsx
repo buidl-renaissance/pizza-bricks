@@ -45,17 +45,17 @@ export function FloatingPizzaViewer({
 }: FloatingPizzaViewerProps) {
   return (
     <ViewerWrap $floating={floating}>
-      <model-viewer
-        src={modelUrl}
-        ios-src={iosModelUrl}
-        alt={alt}
-        ar={ar}
-        ar-modes="webxr scene-viewer quick-look"
-        camera-orbit="0deg 75deg 2.5m"
-        auto-rotate
-        camera-controls
-        style={{ width: "100%", height: "100%" }}
-      />
+      {React.createElement("model-viewer", {
+        src: modelUrl,
+        "ios-src": iosModelUrl,
+        alt,
+        ar,
+        "ar-modes": "webxr scene-viewer quick-look",
+        "camera-orbit": "0deg 75deg 2.5m",
+        "auto-rotate": true,
+        "camera-controls": true,
+        style: { width: "100%", height: "100%" },
+      })}
     </ViewerWrap>
   );
 }
