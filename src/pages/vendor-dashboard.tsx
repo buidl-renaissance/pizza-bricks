@@ -1487,11 +1487,11 @@ const MessageBanner = styled.div<{ $type: 'success' | 'error' | 'payment' }>`
   background: ${({ theme, $type }) =>
     $type === 'success' ? (theme.success ? `${theme.success}20` : 'rgba(34, 197, 94, 0.15)') :
     $type === 'payment' ? (theme.warning ? `${theme.warning}20` : 'rgba(245, 158, 11, 0.15)') :
-    (theme.error ? `${theme.error}20` : 'rgba(239, 68, 68, 0.15)')};
+    (theme.danger ? `${theme.danger}20` : 'rgba(239, 68, 68, 0.15)')};
   border: 1px solid ${({ theme, $type }) =>
     $type === 'success' ? (theme.success ?? '#22c55e') :
     $type === 'payment' ? (theme.warning ?? '#F59E0B') :
-    (theme.error ?? '#ef4444')};
+    (theme.danger ?? '#ef4444')};
   color: ${({ theme }) => theme.text};
 `;
 const CampaignBuilderCardRoot = styled(Card)``;
