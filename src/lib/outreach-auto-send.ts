@@ -12,7 +12,7 @@ import {
   updateProspectStage,
   insertActivityEvent,
 } from '@/db/ops';
-import { inferMenuItems, draftOutreachEmail } from '@/lib/anthropic';
+import { inferMenuItems, draftOutreachEmail, type MenuItem } from '@/lib/anthropic';
 import { searchForMenuItems } from '@/lib/customSearch';
 import { recordAgenticCost } from '@/lib/agentic-cost';
 import { sendEmail, isGmailConfigured } from '@/lib/gmail';
@@ -69,10 +69,13 @@ export async function triggerOutreachEmailForPublishedSite(
       }
     }
 
-    let menuItems: unknown[] = [];
+    let menuItems: MenuItem[] = [];
     if (vendor.menuItems) {
       try {
-        menuItems = JSON.parse(vendor.menuItems) as unknown[];
+        const parsed = JSON.parse(vendor.menuItems) as MenuItem[];
+        if (Array.isArray(parsed)) {
+          menuItems = parsed.filter((item): item is MenuItem => item && typeof item.name === 'string' && typeof item.description === 'string');
+        }
       } catch {
         /* re-infer below */
       }
