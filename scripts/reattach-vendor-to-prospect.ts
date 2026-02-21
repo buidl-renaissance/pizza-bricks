@@ -3,11 +3,12 @@
  * to the prospect's generated sites. Use when prospect.metadata.vendorId was
  * lost and the vendor dashboard no longer shows sites for that wallet.
  *
- * Run: npx tsx scripts/reattach-vendor-to-prospect.ts [wallet] [prospectId?]
- * Example: npx tsx scripts/reattach-vendor-to-prospect.ts 0xD1B19C9ce037eD96a4bfaEcCb7cb2CC48F7680Bd
- * If multiple candidate prospects exist, pass the prospect ID as second argument.
+ * Run: npx tsx scripts/reattach-vendor-to-prospect.ts <wallet> [prospectId] [vendorId?]
+ * - With onboarding: vendor comes from onboarding; prospectId is optional (auto-picked if one candidate).
+ * - No onboarding: pass prospectId and vendorId; script reattaches and creates the onboarding row for the wallet.
  */
 import 'dotenv/config';
+import { randomUUID } from 'crypto';
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '../src/db/drizzle';
 import { prospects, vendorOnboardings, vendors, generatedSites } from '../src/db/schema';
@@ -15,41 +16,74 @@ import { getProspectByVendorId, updateProspectMetadata, getProspect } from '../s
 
 const WALLET = process.argv[2]?.trim() ?? '';
 const PROSPECT_ID_ARG = process.argv[3]?.trim();
+const VENDOR_ID_ARG = process.argv[4]?.trim();
 
 async function main() {
   if (!WALLET) {
-    console.error('Usage: npx tsx scripts/reattach-vendor-to-prospect.ts <wallet> [prospectId]');
+    console.error('Usage: npx tsx scripts/reattach-vendor-to-prospect.ts <wallet> [prospectId] [vendorId]');
     process.exit(1);
   }
 
   const db = getDb();
 
-  const onboarding = await db
+  let onboarding = await db
     .select()
     .from(vendorOnboardings)
     .where(sql`LOWER(${vendorOnboardings.walletAddress}) = LOWER(${WALLET})`)
     .limit(1)
     .then((r) => r[0] ?? null);
 
-  if (!onboarding) {
-    console.error('No onboarding record found for wallet:', WALLET);
-    process.exit(1);
-  }
+  let vendor: typeof vendors.$inferSelect | null = null;
 
-  const vendor = await db
-    .select()
-    .from(vendors)
-    .where(eq(vendors.id, onboarding.vendorId))
-    .limit(1)
-    .then((r) => r[0] ?? null);
-
-  if (!vendor) {
-    console.error('Vendor not found for onboarding vendorId:', onboarding.vendorId);
-    process.exit(1);
+  if (onboarding) {
+    vendor = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, onboarding.vendorId))
+      .limit(1)
+      .then((r) => r[0] ?? null);
+    if (!vendor) {
+      console.error('Vendor not found for onboarding vendorId:', onboarding.vendorId);
+      process.exit(1);
+    }
+  } else {
+    if (!PROSPECT_ID_ARG) {
+      console.error('No onboarding record for this wallet. Pass prospectId (and optionally vendorId):');
+      console.error('  npx tsx scripts/reattach-vendor-to-prospect.ts <wallet> <prospectId> [vendorId]');
+      process.exit(1);
+    }
+    if (VENDOR_ID_ARG) {
+      vendor = await db
+        .select()
+        .from(vendors)
+        .where(eq(vendors.id, VENDOR_ID_ARG))
+        .limit(1)
+        .then((r) => r[0] ?? null);
+      if (!vendor) {
+        console.error('Vendor not found:', VENDOR_ID_ARG);
+        process.exit(1);
+      }
+    } else {
+      const prospect = await getProspect(PROSPECT_ID_ARG);
+      if (!prospect) {
+        console.error('Prospect not found:', PROSPECT_ID_ARG);
+        process.exit(1);
+      }
+      const byName = await db
+        .select()
+        .from(vendors)
+        .where(sql`LOWER(TRIM(${vendors.name})) = ${(prospect.name ?? '').toLowerCase().trim()}`);
+      if (byName.length !== 1) {
+        console.error('No onboarding for this wallet and could not infer vendor (need exactly one vendor with same name as prospect). Pass vendorId:');
+        console.error('  npx tsx scripts/reattach-vendor-to-prospect.ts', WALLET, PROSPECT_ID_ARG, '<vendorId>');
+        process.exit(1);
+      }
+      vendor = byName[0];
+    }
   }
 
   const existingProspect = await getProspectByVendorId(vendor.id);
-  if (existingProspect) {
+  if (onboarding && existingProspect) {
     console.log('Vendor is already linked to prospect:', existingProspect.name, '(id:', existingProspect.id + ')');
     process.exit(0);
   }
@@ -61,6 +95,25 @@ async function main() {
       process.exit(1);
     }
     await updateProspectMetadata(prospect.id, { vendorId: vendor.id });
+    if (!onboarding) {
+      const year = new Date().getFullYear();
+      const suffix = Math.random().toString(36).toUpperCase().slice(2, 6);
+      const prospectCode = `PB-${year}-${suffix}`;
+      const onboardingToken = randomUUID().replace(/-/g, '');
+      await db.insert(vendorOnboardings).values({
+        id: randomUUID(),
+        prospectCode,
+        vendorId: vendor.id,
+        onboardingToken,
+        status: 'wallet_setup',
+        walletAddress: WALLET,
+        businessName: vendor.name,
+        preferredEmail: vendor.email ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log('Created onboarding for wallet; dashboard will now show vendor and sites.');
+    }
     console.log('Reattached vendor', vendor.name, 'to prospect', prospect.name, '(id:', prospect.id + ')');
     process.exit(0);
   }
