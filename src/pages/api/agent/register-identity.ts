@@ -53,7 +53,7 @@ export default async function handler(
     // Check if already registered (non-fatal: some RPCs/proxies return CALL_EXCEPTION with no revert data)
     try {
       const balance: bigint = await registry.balanceOf(wallet.address);
-      if (balance > 0n) {
+      if (balance > BigInt(0)) {
         const agentId: bigint = await registry.tokenOfOwnerByIndex(wallet.address, 0);
         const existingURI: string = await registry.tokenURI(agentId);
         return res.status(200).json({

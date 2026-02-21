@@ -21,6 +21,8 @@ import type {
   EmailLogStatus,
   GeneratedSiteStatus,
   AgentStatus,
+  AgenticCostOperation,
+  AgenticCostEntityType,
 } from './schema';
 import type { Vendor } from './schema';
 
@@ -660,16 +662,17 @@ export async function insertAgenticCost(data: {
   estimatedCostUsd: string;
 }): Promise<void> {
   const db = getDb();
-  await db.insert(agenticCosts).values({
+  const row: typeof agenticCosts.$inferInsert = {
     id: data.id,
-    operation: data.operation,
-    entityType: data.entityType ?? null,
+    operation: data.operation as AgenticCostOperation,
+    entityType: (data.entityType ?? null) as AgenticCostEntityType | null | undefined,
     entityId: data.entityId ?? null,
     model: data.model,
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
     estimatedCostUsd: data.estimatedCostUsd,
-  });
+  };
+  await db.insert(agenticCosts).values(row);
 }
 
 export async function getAgenticCostSummary(): Promise<{

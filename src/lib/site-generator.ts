@@ -78,12 +78,11 @@ export async function generateSite(
     throw new Error('Site generator: no text block in response');
   }
 
+  const thinkingTokens = message.usage && 'thinking_tokens' in message.usage ? (message.usage as { thinking_tokens?: number }).thinking_tokens : undefined;
   const usage: SiteGenUsage = {
     inputTokens: message.usage?.input_tokens ?? 0,
     outputTokens: message.usage?.output_tokens ?? 0,
-    ...(message.usage?.thinking_tokens != null && message.usage.thinking_tokens > 0
-      ? { thinkingTokens: message.usage.thinking_tokens }
-      : {}),
+    ...(thinkingTokens != null && thinkingTokens > 0 ? { thinkingTokens } : {}),
     model: SITE_GEN_MODEL,
   };
 

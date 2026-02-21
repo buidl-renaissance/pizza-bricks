@@ -128,12 +128,11 @@ export async function extractBrandBrief(document: string): Promise<{ brief: Bran
     throw new Error('Brand brief extractor: no tool_use block in response');
   }
 
+  const thinkingTokens = response.usage && 'thinking_tokens' in response.usage ? (response.usage as { thinking_tokens?: number }).thinking_tokens : undefined;
   const usage: BrandBriefUsage = {
     inputTokens: response.usage?.input_tokens ?? 0,
     outputTokens: response.usage?.output_tokens ?? 0,
-    ...(response.usage?.thinking_tokens != null && response.usage.thinking_tokens > 0
-      ? { thinkingTokens: response.usage.thinking_tokens }
-      : {}),
+    ...(thinkingTokens != null && thinkingTokens > 0 ? { thinkingTokens } : {}),
     model: BRAND_BRIEF_MODEL,
   };
 

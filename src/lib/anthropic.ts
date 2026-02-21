@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { Message } from '@anthropic-ai/sdk/resources/messages/messages';
 import { addUsage } from './usage-tracker';
 
 function getClient() {
@@ -7,15 +8,16 @@ function getClient() {
   return new Anthropic({ apiKey });
 }
 
+/** Non-streaming create; returns a Message (never a Stream). */
 async function createMessage(
-  params: Parameters<Anthropic['messages']['create']>[0],
-): Promise<Awaited<ReturnType<Anthropic['messages']['create']>>> {
+  params: Omit<Parameters<Anthropic['messages']['create']>[0], 'stream'>,
+): Promise<Message> {
   const client = getClient();
-  const message = await client.messages.create(params);
-  if (message.usage) {
+  const message = await client.messages.create({ ...params, stream: false });
+  if ('usage' in message && message.usage) {
     addUsage(message.usage.input_tokens, message.usage.output_tokens);
   }
-  return message;
+  return message as Message;
 }
 
 export interface MenuItem {
@@ -68,7 +70,7 @@ export async function inferMenuItems(vendor: VendorContext): Promise<{ menuItems
     } catch { /* skip */ }
   }
 
-  if (sources.length === 0) return [];
+  if (sources.length === 0) return { menuItems: [] };
 
   const prompt = `You are analyzing data about a food business called "${vendor.name}".
 Based on the following information, extract a list of menu items this business likely serves.
@@ -87,12 +89,13 @@ If you cannot determine any menu items, return an empty array [].`;
     messages: [{ role: 'user', content: prompt }],
   });
 
+  if (!('content' in message)) return { menuItems: [] };
   const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
   const usage = message.usage
     ? {
         input_tokens: message.usage.input_tokens,
         output_tokens: message.usage.output_tokens,
-        thinking_tokens: message.usage.thinking_tokens,
+        thinking_tokens: (message.usage as { thinking_tokens?: number }).thinking_tokens,
       }
     : undefined;
 
@@ -234,7 +237,7 @@ The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline st
     ? {
         input_tokens: message.usage.input_tokens,
         output_tokens: message.usage.output_tokens,
-        thinking_tokens: message.usage.thinking_tokens,
+        thinking_tokens: (message.usage as { thinking_tokens?: number }).thinking_tokens,
       }
     : undefined;
 
