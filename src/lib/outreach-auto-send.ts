@@ -19,6 +19,28 @@ import { sendOutreachEmail, isResendConfigured } from '@/lib/resend-outreach';
 
 export type TriggerResult = { sent: boolean; error?: string };
 
+/** Escape for use inside an HTML attribute (e.g. href). */
+function escapeHtmlAttr(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Ensure the site URL appears as a clickable HTML link in the body.
+ * If the body already contains an anchor with this URL, return as-is. Otherwise append a CTA with the link.
+ */
+function ensureSiteLinkInBody(bodyHtml: string, siteUrl: string): string {
+  const escapedUrl = escapeHtmlAttr(siteUrl);
+  if (bodyHtml.includes(`href="${siteUrl}"`) || bodyHtml.includes(`href="${escapedUrl}"`) || bodyHtml.includes(`href='${siteUrl}'`)) {
+    return bodyHtml;
+  }
+  const link = `<a href="${escapedUrl}">${escapedUrl}</a>`;
+  return `${bodyHtml.trim()}\n<p>View your sample site: ${link}</p>`;
+}
+
 /**
  * After a site is published, if the prospect was created from outreach (has metadata.vendorId),
  * draft the outreach email with the site URL and send it automatically.
@@ -110,7 +132,8 @@ export async function triggerOutreachEmailForPublishedSite(
     }
 
     const draftResult = await draftOutreachEmail(vendor, menuItems, siteUrl);
-    const { subject, bodyHtml } = draftResult;
+    let { subject, bodyHtml } = draftResult;
+    bodyHtml = ensureSiteLinkInBody(bodyHtml, siteUrl);
     if (
       draftResult.usage &&
       (draftResult.usage.input_tokens > 0 || draftResult.usage.output_tokens > 0)

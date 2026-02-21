@@ -168,7 +168,7 @@ Intent definitions:
 export async function draftOutreachEmail(
   vendor: VendorContext,
   menuItems: MenuItem[],
-  _siteUrl?: string
+  siteUrl?: string
 ): Promise<{ subject: string; bodyHtml: string; usage?: AnthropicUsage }> {
   let categories: string[] = [];
   try {
@@ -215,7 +215,9 @@ GUIDELINES:
 - ${hasWebsite
     ? 'They have a website but we can help improve it — mention we can build a better, modern version for free'
     : 'Explain that we noticed they don\'t have a website and we\'d love to help'}
-- Mention we can build them a sample website for free to see if they like it
+- ${siteUrl
+    ? `IMPORTANT: We have already built a sample site. Include a clickable link using this exact URL: ${siteUrl}. Use proper HTML: <a href="${siteUrl}">View your sample site</a> or <a href="${siteUrl}">${siteUrl}</a>. Say we've built a sample site and invite them to click the link.`
+    : 'Mention we can build them a sample website for free to see if they like it'}
 - Keep it concise — 3-4 short paragraphs max
 - Sign off as "The Pizza Bricks Team"
 - Do NOT include any placeholder brackets like [Name] — use the actual business name
@@ -224,7 +226,7 @@ GUIDELINES:
 Return ONLY a JSON object with no markdown formatting, no code fences:
 { "subject": "...", "bodyHtml": "..." }
 
-The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline styles or complex markup.`;
+The bodyHtml should be simple HTML (p tags, br, b/em for emphasis, and <a href="..."> for links). Use full absolute URLs in href (e.g. https://...). No inline styles or complex markup.`;
 
   const message = await createMessage({
     model: 'claude-sonnet-4-5-20250929',

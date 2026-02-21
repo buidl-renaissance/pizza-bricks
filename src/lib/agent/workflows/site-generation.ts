@@ -39,7 +39,7 @@ export async function startSiteGenerationForProspect(prospectId: string): Promis
 
   runSitePipeline({
     document: doc,
-    waitForReady: false,
+    waitForReady: true,
     prospectId,
     ...(biteBiteConfig ? { biteBiteConfig } : {}),
   })

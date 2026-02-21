@@ -135,7 +135,7 @@ GUIDELINES:
 - Reference specific details: mention a popular dish, a positive review, or their rating
 - Explain that we noticed they don't have a website and we'd love to help
 ${siteUrl
-  ? `- IMPORTANT: We have already built a sample site for them. Include this exact link in the email: ${siteUrl}. Say we've built a sample site and invite them to click the link to see it.`
+  ? `- IMPORTANT: We have already built a sample site. Include a clickable link using this exact URL: ${siteUrl}. Use proper HTML: <a href="${siteUrl}">View your sample site</a> or <a href="${siteUrl}">${siteUrl}</a>. Say we've built a sample site and invite them to click the link.`
   : '- Mention we can build them a sample website for free to see if they like it'}
 - Keep it concise — 3-4 short paragraphs max
 - Sign off as "The Pizza Bricks Team"
@@ -144,7 +144,7 @@ ${siteUrl
 Return ONLY a JSON object with no markdown formatting, no code fences:
 { "subject": "...", "bodyHtml": "..." }
 
-The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline styles or complex markup.`;
+The bodyHtml should be simple HTML (p tags, br, b/em for emphasis, and <a href="..."> for links). Use full absolute URLs in href (e.g. https://...). No inline styles or complex markup.`;
 
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
