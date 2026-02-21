@@ -21,6 +21,7 @@ type NormalizedPlace = ReturnType<typeof normalizeGooglePlace>;
 type VendorWithEnrichment = NormalizedPlace & {
   id: string;
   status?: string;
+  notes?: string | null;
   facebookPageId?: string | null;
   facebookPageUrl?: string | null;
   instagramUrl?: string | null;
@@ -231,7 +232,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const enrichedIds = new Set(enriched.map(v => v.id));
     for (const demo of demoVendors) {
       if (!enrichedIds.has(demo.id)) {
-        enriched.push(demo);
+        enriched.push({
+          ...demo,
+          googlePlaceId: demo.googlePlaceId ?? `demo_${demo.id}`,
+        } as VendorWithEnrichment);
       }
     }
 
