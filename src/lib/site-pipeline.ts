@@ -6,12 +6,21 @@ import {
   waitForDeployment,
   DeploymentStatus,
 } from './vercel-deployer';
+import { estimateCostUsd } from './agentic-cost';
 
 export interface PipelineResult {
   url: string;
   deploymentId: string;
   projectId: string;
   status: DeploymentStatus;
+  /** Aggregated AI usage for brand brief + site generation */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    thinkingTokens?: number;
+    model: string;
+    estimatedCostUsd: string;
+  };
 }
 
 export interface BiteBiteConfig {
@@ -81,11 +90,24 @@ export async function runSitePipeline(
 
   // Step 1: Extract structured BrandBrief from raw text
   console.log('[pipeline] step 1/5 — extracting brand brief');
-  const brief = await extractBrandBrief(document);
+  const { brief, usage: briefUsage } = await extractBrandBrief(document);
 
   // Step 2: Generate site files via Claude
   console.log('[pipeline] step 2/5 — generating site');
-  const generatedSite = await generateSite(brief, biteBiteConfig);
+  const { site: generatedSite, usage: siteUsage } = await generateSite(brief, biteBiteConfig);
+
+  const totalInput = briefUsage.inputTokens + siteUsage.inputTokens;
+  const totalOutput = briefUsage.outputTokens + siteUsage.outputTokens;
+  const totalThinking = (briefUsage.thinkingTokens ?? 0) + (siteUsage.thinkingTokens ?? 0);
+  const model = briefUsage.model;
+  const estimatedCostUsd = estimateCostUsd(model, totalInput, totalOutput, totalThinking || undefined);
+  const usage = {
+    inputTokens: totalInput,
+    outputTokens: totalOutput,
+    ...(totalThinking > 0 ? { thinkingTokens: totalThinking } : {}),
+    model,
+    estimatedCostUsd,
+  };
 
   // Step 3: Post-process (inject analytics, Schema.org, badge)
   console.log('[pipeline] step 3/5 — post-processing');
@@ -113,6 +135,7 @@ export async function runSitePipeline(
       deploymentId: final.id,
       projectId: final.projectId ?? deployment.projectId ?? '',
       status: final.readyState,
+      usage,
     };
   }
 
@@ -121,5 +144,6 @@ export async function runSitePipeline(
     deploymentId: deployment.id,
     projectId: deployment.projectId ?? '',
     status: deployment.readyState,
+    usage,
   };
 }

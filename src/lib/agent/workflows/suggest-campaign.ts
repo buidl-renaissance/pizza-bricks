@@ -6,6 +6,7 @@ import { vendors, prospects } from '@/db/schema';
 import { insertCampaign, getContributorCountsByRole } from '@/db/campaigns';
 import { insertActivityEvent } from '@/db/ops';
 import type { CampaignType } from '@/db/schema';
+import { recordAgenticCost, estimateCostUsd } from '@/lib/agentic-cost';
 
 const SYSTEM_PROMPT = `You are a campaign orchestration assistant for local food vendors (pizza trucks, taco stands, coffee shops, etc.). You suggest campaign ideas that drive foot traffic, awareness, and community goodwill.
 
@@ -176,6 +177,11 @@ Provide one compelling campaign suggestion using the suggest_campaign tool.`;
   const name = (raw.name as string) ?? 'Suggested Campaign';
   const description = (raw.description as string) ?? '';
 
+  const model = 'claude-sonnet-4-20250514';
+  const inputTokens = response.usage?.input_tokens ?? 0;
+  const outputTokens = response.usage?.output_tokens ?? 0;
+  const estimatedCostUsd = estimateCostUsd(model, inputTokens, outputTokens);
+
   const campaign = await insertCampaign({
     vendorId: vendorId ?? undefined,
     prospectId: prospectId ?? undefined,
@@ -192,7 +198,21 @@ Provide one compelling campaign suggestion using the suggest_campaign tool.`;
     assetList: Array.isArray(raw.assetList) ? (raw.assetList as string[]) : undefined,
     underutilizationInsight: typeof raw.underutilizationInsight === 'string' ? raw.underutilizationInsight : undefined,
     timeline: typeof raw.timeline === 'string' ? raw.timeline : undefined,
+    inputTokens,
+    outputTokens,
+    estimatedCostUsd,
   });
+
+  if (inputTokens > 0 || outputTokens > 0) {
+    await recordAgenticCost({
+      operation: 'campaign_suggestion',
+      entityType: 'campaign',
+      entityId: campaign.id,
+      model,
+      inputTokens,
+      outputTokens,
+    });
+  }
 
   await insertActivityEvent({
     type: 'campaign_suggested',

@@ -40,6 +40,9 @@ export async function insertCampaign(data: {
   assetList?: string[];
   underutilizationInsight?: string;
   metadata?: Record<string, unknown>;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: string;
 }): Promise<Campaign> {
   const db = getDb();
   const id = uuidv4();
@@ -61,6 +64,9 @@ export async function insertCampaign(data: {
     assetList: data.assetList ? JSON.stringify(data.assetList) : null,
     underutilizationInsight: data.underutilizationInsight ?? null,
     metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+    inputTokens: data.inputTokens ?? null,
+    outputTokens: data.outputTokens ?? null,
+    estimatedCostUsd: data.estimatedCostUsd ?? null,
   };
   await db.insert(campaigns).values(row);
   return row as Campaign;

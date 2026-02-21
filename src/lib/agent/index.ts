@@ -104,7 +104,7 @@ export async function runAgentTick(): Promise<{
     return null;
   });
 
-  await insertAgentTick({
+  const tick = await insertAgentTick({
     startedAt: tickStartedAt,
     discovered: results.discovered ?? 0,
     emailsSent: results.emailsSent ?? 0,
@@ -116,6 +116,18 @@ export async function runAgentTick(): Promise<{
     outflowAmountUsdc: spend?.amountUsdc ?? undefined,
     status: 'completed',
   });
+
+  if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+    const { recordAgenticCost } = await import('@/lib/agentic-cost');
+    recordAgenticCost({
+      operation: 'outreach_tick',
+      entityType: 'agent_tick',
+      entityId: tick.id,
+      model: 'claude-sonnet-4-5',
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    }).catch((err) => console.error('[agent-tick] recordAgenticCost failed:', err));
+  }
 
   return { skipped: false, results };
 }

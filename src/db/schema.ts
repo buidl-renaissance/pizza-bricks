@@ -82,6 +82,10 @@ export const generatedSites = sqliteTable('generated_sites', {
   publishedAt: integer('publishedAt', { mode: 'timestamp' }),
   viewCount: integer('viewCount').default(0).notNull(),
   metadata: text('metadata'), // JSON: { deploymentId, vercelProjectId }
+  // AI cost for website generation (brand brief + site gen)
+  inputTokens: integer('inputTokens'),
+  outputTokens: integer('outputTokens'),
+  estimatedCostUsd: text('estimatedCostUsd'),
 });
 
 export const agentState = sqliteTable('agent_state', {
@@ -298,8 +302,34 @@ export const campaigns = sqliteTable('campaigns', {
   assetList: text('assetList'), // JSON: string[]
   underutilizationInsight: text('underutilizationInsight'),
   metadata: text('metadata'), // JSON
+  // AI cost for campaign suggestion
+  inputTokens: integer('inputTokens'),
+  outputTokens: integer('outputTokens'),
+  estimatedCostUsd: text('estimatedCostUsd'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+// ── Agentic costs — one row per Anthropic API call for reporting ──────────────
+export type AgenticCostOperation =
+  | 'website_generation'
+  | 'campaign_suggestion'
+  | 'reply_intent'
+  | 'site_edit'
+  | 'outreach_draft'
+  | 'outreach_tick';
+export type AgenticCostEntityType = 'generated_site' | 'campaign' | 'agent_tick';
+
+export const agenticCosts = sqliteTable('agentic_costs', {
+  id: text('id').primaryKey(),
+  operation: text('operation').$type<AgenticCostOperation>().notNull(),
+  entityType: text('entityType').$type<AgenticCostEntityType>(),
+  entityId: text('entityId'),
+  model: text('model').notNull(),
+  inputTokens: integer('inputTokens').notNull(),
+  outputTokens: integer('outputTokens').notNull(),
+  estimatedCostUsd: text('estimatedCostUsd').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
 });
 
 export const campaignEvents = sqliteTable('campaign_events', {

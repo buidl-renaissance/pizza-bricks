@@ -95,11 +95,20 @@ const BRAND_BRIEF_INPUT_SCHEMA = {
   required: ['business', 'brand', 'menu', 'media'],
 } satisfies Tool['input_schema'];
 
-export async function extractBrandBrief(document: string): Promise<BrandBrief> {
+const BRAND_BRIEF_MODEL = 'claude-opus-4-6';
+
+export interface BrandBriefUsage {
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens?: number;
+  model: string;
+}
+
+export async function extractBrandBrief(document: string): Promise<{ brief: BrandBrief; usage: BrandBriefUsage }> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const response = await client.messages.create({
-    model: 'claude-opus-4-6',
+    model: BRAND_BRIEF_MODEL,
     max_tokens: 8096,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: document }],
@@ -119,5 +128,17 @@ export async function extractBrandBrief(document: string): Promise<BrandBrief> {
     throw new Error('Brand brief extractor: no tool_use block in response');
   }
 
-  return BrandBriefSchema.parse(toolBlock.input);
+  const usage: BrandBriefUsage = {
+    inputTokens: response.usage?.input_tokens ?? 0,
+    outputTokens: response.usage?.output_tokens ?? 0,
+    ...(response.usage?.thinking_tokens != null && response.usage.thinking_tokens > 0
+      ? { thinkingTokens: response.usage.thinking_tokens }
+      : {}),
+    model: BRAND_BRIEF_MODEL,
+  };
+
+  return {
+    brief: BrandBriefSchema.parse(toolBlock.input),
+    usage,
+  };
 }

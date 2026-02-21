@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getUserById } from '@/db/user';
 import { runSitePipeline, PipelineResult } from '@/lib/site-pipeline';
+import { recordAgenticCost } from '@/lib/agentic-cost';
 
 // Allow up to 5 minutes on Vercel Pro
 export const config = { maxDuration: 300 };
@@ -50,6 +51,18 @@ export default async function handler(
       document: document.trim(),
       waitForReady,
     });
+
+    if (result.usage) {
+      await recordAgenticCost({
+        operation: 'website_generation',
+        entityType: null,
+        entityId: null,
+        model: result.usage.model,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        thinkingTokens: result.usage.thinkingTokens,
+      });
+    }
 
     return res.status(200).json({ success: true, result });
   } catch (error) {

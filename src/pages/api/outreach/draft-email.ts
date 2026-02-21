@@ -5,6 +5,7 @@ import { getDb } from '@/db/drizzle';
 import { vendors, outreachEmails, type NewOutreachEmail } from '@/db/schema';
 import { inferMenuItems, draftOutreachEmail } from '@/lib/anthropic';
 import { searchForMenuItems } from '@/lib/customSearch';
+import { recordAgenticCost } from '@/lib/agentic-cost';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -52,8 +53,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (menuItems.length === 0) {
-      menuItems = await inferMenuItems(vendor);
-
+      const menuResult = await inferMenuItems(vendor);
+      menuItems = menuResult.menuItems;
+      if (menuResult.usage && (menuResult.usage.input_tokens > 0 || menuResult.usage.output_tokens > 0)) {
+        recordAgenticCost({
+          operation: 'outreach_draft',
+          model: 'claude-haiku-4-5-20251001',
+          inputTokens: menuResult.usage.input_tokens,
+          outputTokens: menuResult.usage.output_tokens,
+          thinkingTokens: menuResult.usage.thinking_tokens,
+        }).catch((err) => console.error('[draft-email] recordAgenticCost menu_inference failed:', err));
+      }
       if (menuItems.length > 0) {
         await db.update(vendors).set({
           menuItems: JSON.stringify(menuItems),
@@ -63,7 +73,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Step 2: Draft the outreach email (include siteUrl if provided)
-    const { subject, bodyHtml } = await draftOutreachEmail(vendor, menuItems, siteUrl || undefined);
+    const draftResult = await draftOutreachEmail(vendor, menuItems, siteUrl || undefined);
+    const { subject, bodyHtml } = draftResult;
+    if (draftResult.usage && (draftResult.usage.input_tokens > 0 || draftResult.usage.output_tokens > 0)) {
+      recordAgenticCost({
+        operation: 'outreach_draft',
+        model: 'claude-sonnet-4-5-20250929',
+        inputTokens: draftResult.usage.input_tokens,
+        outputTokens: draftResult.usage.output_tokens,
+        thinkingTokens: draftResult.usage.thinking_tokens,
+      }).catch((err) => console.error('[draft-email] recordAgenticCost draft failed:', err));
+    }
 
     // Step 3: Save as draft in outreach_emails table
     const emailId = uuid();

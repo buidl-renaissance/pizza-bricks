@@ -46,15 +46,24 @@ function parseGeneratedSite(rawText: string): GeneratedSite {
   return GeneratedSiteSchema.parse(parsed);
 }
 
+const SITE_GEN_MODEL = 'claude-opus-4-6';
+
+export interface SiteGenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens?: number;
+  model: string;
+}
+
 export async function generateSite(
   brief: BrandBrief,
   biteBiteConfig?: BiteBiteConfig
-): Promise<GeneratedSite> {
+): Promise<{ site: GeneratedSite; usage: SiteGenUsage }> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const prompts = buildPrompts(brief, biteBiteConfig);
 
   const stream = client.messages.stream({
-    model: 'claude-opus-4-6',
+    model: SITE_GEN_MODEL,
     max_tokens: 32000,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     thinking: { type: 'enabled', budget_tokens: 8000 } as any,
@@ -69,5 +78,17 @@ export async function generateSite(
     throw new Error('Site generator: no text block in response');
   }
 
-  return parseGeneratedSite(textBlock.text);
+  const usage: SiteGenUsage = {
+    inputTokens: message.usage?.input_tokens ?? 0,
+    outputTokens: message.usage?.output_tokens ?? 0,
+    ...(message.usage?.thinking_tokens != null && message.usage.thinking_tokens > 0
+      ? { thinkingTokens: message.usage.thinking_tokens }
+      : {}),
+    model: SITE_GEN_MODEL,
+  };
+
+  return {
+    site: parseGeneratedSite(textBlock.text),
+    usage,
+  };
 }

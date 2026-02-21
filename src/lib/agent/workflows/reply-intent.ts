@@ -10,6 +10,7 @@ import {
   getLatestPublishedSiteForProspect,
 } from '@/db/ops';
 import { generateSiteForProspect, updateSiteForProspect } from './site-generation';
+import { recordAgenticCost } from '@/lib/agentic-cost';
 
 export type ReplyIntent =
   | 'website_update'
@@ -55,8 +56,9 @@ export async function parseReplyIntent(body: string): Promise<ParsedReplyIntent>
   }
 
   const client = new Anthropic({ apiKey });
+  const model = 'claude-sonnet-4-5';
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-5',
+    model,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: `Classify this email reply:\n\n${body.slice(0, 4000)}` }],
@@ -69,6 +71,17 @@ export async function parseReplyIntent(body: string): Promise<ParsedReplyIntent>
     ],
     tool_choice: { type: 'tool', name: 'classify_reply_intent' },
   });
+
+  const inputTokens = response.usage?.input_tokens ?? 0;
+  const outputTokens = response.usage?.output_tokens ?? 0;
+  if (inputTokens > 0 || outputTokens > 0) {
+    await recordAgenticCost({
+      operation: 'reply_intent',
+      model,
+      inputTokens,
+      outputTokens,
+    }).catch((err) => console.error('[reply-intent] recordAgenticCost failed:', err));
+  }
 
   const toolBlock = response.content.find((b) => b.type === 'tool_use');
   if (!toolBlock || toolBlock.type !== 'tool_use') {

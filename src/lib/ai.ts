@@ -21,17 +21,20 @@ export async function inferMenuItems(
     return fn(vendor);
   }
   const { inferMenuItems: fn } = await import('./anthropic');
-  return fn(vendor);
+  const result = await fn(vendor);
+  return result.menuItems;
 }
 
 export async function draftOutreachEmail(
   vendor: import('./anthropic').VendorContext,
-  menuItems: import('./anthropic').MenuItem[]
+  menuItems: import('./anthropic').MenuItem[],
+  siteUrl?: string
 ): Promise<{ subject: string; bodyHtml: string }> {
   if (provider === 'gemini') {
     const { draftOutreachEmail: fn } = await import('./gemini');
     return fn(vendor, menuItems);
   }
   const { draftOutreachEmail: fn } = await import('./anthropic');
-  return fn(vendor, menuItems);
+  const result = await fn(vendor, menuItems, siteUrl);
+  return { subject: result.subject, bodyHtml: result.bodyHtml };
 }

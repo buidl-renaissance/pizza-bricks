@@ -122,7 +122,7 @@ export default async function handler(
       });
     }
 
-    const modifiedFiles = await applySiteEdits(files, prompt);
+    const modifiedFiles = await applySiteEdits(files, prompt, siteId);
     const slug = prospect.name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')

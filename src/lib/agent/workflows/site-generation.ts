@@ -7,6 +7,7 @@ import {
   updateProspectStage,
 } from '@/db/ops';
 import { runSitePipeline, deriveBiteBiteConfig } from '@/lib/site-pipeline';
+import { recordAgenticCost } from '@/lib/agentic-cost';
 
 /**
  * Start site generation for a prospect. Returns siteId immediately; pipeline runs in background.
@@ -42,11 +43,29 @@ export async function startSiteGenerationForProspect(prospectId: string): Promis
     ...(biteBiteConfig ? { biteBiteConfig } : {}),
   })
     .then(async (result) => {
+      if (result.usage) {
+        await recordAgenticCost({
+          operation: 'website_generation',
+          entityType: 'generated_site',
+          entityId: siteRecord.id,
+          model: result.usage.model,
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          thinkingTokens: result.usage.thinkingTokens,
+        });
+      }
       await updateGeneratedSite(siteRecord.id, {
         url: result.url,
         status: result.status === 'READY' ? 'published' : 'pending_review',
         publishedAt: result.status === 'READY' ? new Date() : undefined,
         metadata: { deploymentId: result.deploymentId, vercelProjectId: result.projectId },
+        ...(result.usage
+          ? {
+              inputTokens: result.usage.inputTokens,
+              outputTokens: result.usage.outputTokens,
+              estimatedCostUsd: result.usage.estimatedCostUsd,
+            }
+          : {}),
       });
       if (result.status === 'READY') {
         await updateProspectStage(prospectId, 'onboarding');
@@ -116,6 +135,18 @@ export async function updateSiteForProspect(prospectId: string, siteId: string):
       ...(biteBiteConfig ? { biteBiteConfig } : {}),
     });
 
+    if (result.usage) {
+      await recordAgenticCost({
+        operation: 'website_generation',
+        entityType: 'generated_site',
+        entityId: siteId,
+        model: result.usage.model,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        thinkingTokens: result.usage.thinkingTokens,
+      });
+    }
+
     await updateGeneratedSite(siteId, {
       url: result.url,
       status: result.status === 'READY' ? 'published' : 'pending_review',
@@ -125,6 +156,13 @@ export async function updateSiteForProspect(prospectId: string, siteId: string):
         vercelProjectId: result.projectId || vercelProjectId,
         deploymentStatus: result.status,
       },
+      ...(result.usage
+        ? {
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            estimatedCostUsd: result.usage.estimatedCostUsd,
+          }
+        : {}),
     });
 
     await insertActivityEvent({

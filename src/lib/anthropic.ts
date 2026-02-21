@@ -37,7 +37,13 @@ export interface VendorContext {
   email?: string | null;
 }
 
-export async function inferMenuItems(vendor: VendorContext): Promise<MenuItem[]> {
+export interface AnthropicUsage {
+  input_tokens: number;
+  output_tokens: number;
+  thinking_tokens?: number;
+}
+
+export async function inferMenuItems(vendor: VendorContext): Promise<{ menuItems: MenuItem[]; usage?: AnthropicUsage }> {
   const sources: string[] = [];
 
   if (vendor.topReviews) {
@@ -82,15 +88,23 @@ If you cannot determine any menu items, return an empty array [].`;
   });
 
   const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+  const usage = message.usage
+    ? {
+        input_tokens: message.usage.input_tokens,
+        output_tokens: message.usage.output_tokens,
+        thinking_tokens: message.usage.thinking_tokens,
+      }
+    : undefined;
 
   try {
     const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     const parsed = JSON.parse(cleaned);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item: MenuItem) => item.name && typeof item.name === 'string');
+    if (!Array.isArray(parsed)) return { menuItems: [], usage };
+    const menuItems = parsed.filter((item: MenuItem) => item.name && typeof item.name === 'string');
+    return { menuItems, usage };
   } catch (err) {
     console.error('Failed to parse Anthropic menu response:', text, err);
-    return [];
+    return { menuItems: [], usage };
   }
 }
 
@@ -150,8 +164,9 @@ Intent definitions:
 
 export async function draftOutreachEmail(
   vendor: VendorContext,
-  menuItems: MenuItem[]
-): Promise<{ subject: string; bodyHtml: string }> {
+  menuItems: MenuItem[],
+  _siteUrl?: string
+): Promise<{ subject: string; bodyHtml: string; usage?: AnthropicUsage }> {
   let categories: string[] = [];
   try {
     if (vendor.categories) categories = JSON.parse(vendor.categories);
@@ -215,6 +230,13 @@ The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline st
   });
 
   const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+  const usage = message.usage
+    ? {
+        input_tokens: message.usage.input_tokens,
+        output_tokens: message.usage.output_tokens,
+        thinking_tokens: message.usage.thinking_tokens,
+      }
+    : undefined;
 
   try {
     const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
@@ -222,12 +244,14 @@ The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline st
     return {
       subject: parsed.subject || `We'd love to help ${vendor.name} grow online`,
       bodyHtml: parsed.bodyHtml || '<p>Could not generate email body.</p>',
+      usage,
     };
   } catch (err) {
     console.error('Failed to parse Anthropic email response:', text, err);
     return {
       subject: `We'd love to help ${vendor.name} grow online`,
       bodyHtml: '<p>Could not generate email body. Please try again.</p>',
+      usage,
     };
   }
 }

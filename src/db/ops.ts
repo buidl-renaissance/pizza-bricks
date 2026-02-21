@@ -9,6 +9,7 @@ import {
   agentState,
   agentTicks,
   vendorOnboardings,
+  agenticCosts,
 } from './schema';
 import type {
   PipelineStage,
@@ -421,9 +422,12 @@ export async function insertGeneratedSite(data: {
     publishedAt: null,
     viewCount: 0,
     metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+    inputTokens: null,
+    outputTokens: null,
+    estimatedCostUsd: null,
   };
   await db.insert(generatedSites).values(row);
-  return row;
+  return row as GeneratedSite;
 }
 
 export async function updateGeneratedSite(id: string, data: Partial<{
@@ -432,6 +436,9 @@ export async function updateGeneratedSite(id: string, data: Partial<{
   publishedAt: Date;
   viewCount: number;
   metadata: Record<string, unknown>;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: string;
 }>): Promise<void> {
   const db = getDb();
   const update: Record<string, unknown> = {};
@@ -440,6 +447,9 @@ export async function updateGeneratedSite(id: string, data: Partial<{
   if (data.publishedAt !== undefined) update.publishedAt = data.publishedAt;
   if (data.viewCount !== undefined) update.viewCount = data.viewCount;
   if (data.metadata !== undefined) update.metadata = JSON.stringify(data.metadata);
+  if (data.inputTokens !== undefined) update.inputTokens = data.inputTokens;
+  if (data.outputTokens !== undefined) update.outputTokens = data.outputTokens;
+  if (data.estimatedCostUsd !== undefined) update.estimatedCostUsd = data.estimatedCostUsd;
   await db.update(generatedSites).set(update).where(eq(generatedSites.id, id));
 }
 
@@ -636,6 +646,52 @@ export async function getTickFinanceSummary(): Promise<{
     totalOutflowUsdc: Number(t.totalOutflowUsdc ?? 0),
     revenueVendorFees: Number(onboardingRows[0]?.count ?? 0),
   };
+}
+
+// ── Agentic costs ─────────────────────────────────────────────────────────────
+export async function insertAgenticCost(data: {
+  id: string;
+  operation: string;
+  entityType?: string;
+  entityId?: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: string;
+}): Promise<void> {
+  const db = getDb();
+  await db.insert(agenticCosts).values({
+    id: data.id,
+    operation: data.operation,
+    entityType: data.entityType ?? null,
+    entityId: data.entityId ?? null,
+    model: data.model,
+    inputTokens: data.inputTokens,
+    outputTokens: data.outputTokens,
+    estimatedCostUsd: data.estimatedCostUsd,
+  });
+}
+
+export async function getAgenticCostSummary(): Promise<{
+  totalCostUsd: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  byOperation: Record<string, number>;
+}> {
+  const db = getDb();
+  const rows = await db.select().from(agenticCosts);
+  let totalCostUsd = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  const byOperation: Record<string, number> = {};
+  for (const r of rows) {
+    const cost = parseFloat(r.estimatedCostUsd ?? '0');
+    totalCostUsd += cost;
+    totalInputTokens += r.inputTokens;
+    totalOutputTokens += r.outputTokens;
+    byOperation[r.operation] = (byOperation[r.operation] ?? 0) + cost;
+  }
+  return { totalCostUsd, totalInputTokens, totalOutputTokens, byOperation };
 }
 
 // ── Metric Overview ───────────────────────────────────────────────────────────
