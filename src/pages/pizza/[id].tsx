@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -11,6 +11,12 @@ import { isInRange } from "@/lib/geo";
 const FloatingPizzaViewer = dynamic(
   () =>
     import("@/components/pizza/FloatingPizzaViewer").then((m) => m.FloatingPizzaViewer),
+  { ssr: false }
+);
+
+const LocationDeniedPrompt = dynamic(
+  () =>
+    import("@/components/pizza/LocationDeniedPrompt").then((m) => m.LocationDeniedPrompt),
   { ssr: false }
 );
 
@@ -41,15 +47,36 @@ const Title = styled.h1`
   color: ${({ theme }) => theme.text};
 `;
 
-const GeoBadge = styled.div<{ $inRange: boolean }>`
+const GeoBadge = styled.div<{ $variant?: "success" | "warning" | "muted" }>`
   display: inline-block;
   padding: 0.35rem 0.75rem;
   border-radius: ${({ theme }) => theme.borderRadius};
   font-size: 0.85rem;
   margin-bottom: 1rem;
-  background: ${({ theme, $inRange }) => ($inRange ? theme.success + "22" : theme.surface)};
-  color: ${({ theme, $inRange }) => ($inRange ? theme.success : theme.textSecondary)};
-  border: 1px solid ${({ theme, $inRange }) => ($inRange ? theme.success : theme.border)};
+  background: ${({ theme, $variant }) =>
+    $variant === "success" ? theme.success + "22" :
+    $variant === "warning" ? theme.warning + "22" : theme.surface};
+  color: ${({ theme, $variant }) =>
+    $variant === "success" ? theme.success :
+    $variant === "warning" ? theme.warning : theme.textSecondary};
+  border: 1px solid ${({ theme, $variant }) =>
+    $variant === "success" ? theme.success :
+    $variant === "warning" ? theme.warning : theme.border};
+`;
+
+const StateBox = styled.div`
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  p {
+    color: ${({ theme }) => theme.textSecondary};
+    margin: 0;
+    font-size: 0.9rem;
+  }
 `;
 
 const Message = styled.p`
@@ -87,15 +114,9 @@ export default function PizzaCollectiblePage({ collectible, notFound }: PageProp
     "loading" | "in_range" | "out_of_range" | "denied" | "unsupported"
   >("loading");
 
-  useEffect(() => {
-    if (!collectible?.geo || typeof window === "undefined") {
-      setGeoState("unsupported");
-      return;
-    }
-    if (!navigator.geolocation) {
-      setGeoState("unsupported");
-      return;
-    }
+  const requestLocation = useCallback(() => {
+    if (!collectible?.geo || typeof window === "undefined" || !navigator.geolocation) return;
+    setGeoState("loading");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const inRange = isInRange(
@@ -112,6 +133,18 @@ export default function PizzaCollectiblePage({ collectible, notFound }: PageProp
     );
   }, [collectible?.geo]);
 
+  useEffect(() => {
+    if (!collectible?.geo || typeof window === "undefined") {
+      setGeoState("unsupported");
+      return;
+    }
+    if (!navigator.geolocation) {
+      setGeoState("unsupported");
+      return;
+    }
+    requestLocation();
+  }, [collectible?.geo, requestLocation]);
+
   if (notFound || !collectible) {
     return (
       <ThemeProvider theme={pizzaLandingTheme}>
@@ -127,10 +160,85 @@ export default function PizzaCollectiblePage({ collectible, notFound }: PageProp
     );
   }
 
-  const showGeo =
-    collectible.geo &&
-    geoState !== "loading" &&
-    geoState !== "unsupported";
+  const hasGeo = !!collectible.geo;
+  const showPizza = !hasGeo || geoState === "in_range";
+
+  const renderGeoState = () => {
+    if (!hasGeo) return null;
+    if (geoState === "loading") {
+      return (
+        <GeoBadge $variant="muted">
+          Checking your location…
+        </GeoBadge>
+      );
+    }
+    if (geoState === "in_range") {
+      return (
+        <GeoBadge $variant="success">
+          You&apos;re here! View below.
+        </GeoBadge>
+      );
+    }
+    if (geoState === "out_of_range") {
+      return (
+        <GeoBadge $variant="warning">
+          {collectible.geo?.placeName
+            ? `Visit ${collectible.geo.placeName} to unlock`
+            : "Move to the pin location to unlock"}
+        </GeoBadge>
+      );
+    }
+    if (geoState === "denied") {
+      return (
+        <GeoBadge $variant="muted">
+          Allow location to see if you&apos;re in range
+        </GeoBadge>
+      );
+    }
+    if (geoState === "unsupported") {
+      return (
+        <GeoBadge $variant="muted">
+          Location not supported in this browser
+        </GeoBadge>
+      );
+    }
+    return null;
+  };
+
+  const renderContent = () => {
+    if (showPizza) {
+      return (
+        <FloatingPizzaViewer
+          alt={collectible.displayName}
+          floating={true}
+        />
+      );
+    }
+    if (hasGeo && geoState === "loading") {
+      return (
+        <StateBox>
+          <p>Checking your location…</p>
+        </StateBox>
+      );
+    }
+    if (hasGeo && geoState === "denied") {
+      return <LocationDeniedPrompt onRetry={requestLocation} />;
+    }
+    if (hasGeo && (geoState === "out_of_range" || geoState === "unsupported")) {
+      return (
+        <StateBox>
+          <p>
+            {geoState === "out_of_range" &&
+              (collectible.geo?.placeName
+                ? `Visit ${collectible.geo.placeName} to unlock this collectible.`
+                : "Move to the pin location to unlock.")}
+            {geoState === "unsupported" && "Location isn't supported in this browser."}
+          </p>
+        </StateBox>
+      );
+    }
+    return null;
+  };
 
   return (
     <ThemeProvider theme={pizzaLandingTheme}>
@@ -141,21 +249,8 @@ export default function PizzaCollectiblePage({ collectible, notFound }: PageProp
       <Page>
         <BackLink href="/">← Back to home</BackLink>
         <Title>{collectible.displayName}</Title>
-        {showGeo && (
-          <GeoBadge $inRange={geoState === "in_range"}>
-            {geoState === "in_range"
-              ? "You're here! View in your space below."
-              : geoState === "out_of_range"
-                ? collectible.geo?.placeName
-                  ? `Visit ${collectible.geo.placeName} to unlock AR`
-                  : "Move to the pin location to view in AR"
-                : "Allow location to see if you're in range"}
-          </GeoBadge>
-        )}
-        <FloatingPizzaViewer
-          alt={collectible.displayName}
-          floating={true}
-        />
+        {renderGeoState()}
+        {renderContent()}
         {collectible.description && (
           <Message>{collectible.description}</Message>
         )}
