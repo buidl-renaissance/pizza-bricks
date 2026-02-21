@@ -8,7 +8,7 @@ const BASE_MAINNET_RPC = 'https://mainnet.base.org';
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 // keccak256("Transfer(address,address,uint256)")
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-const MIN_AMOUNT = BigInt(1_000_000); // 1 USDC (6 decimals)
+const MIN_AMOUNT = BigInt(10_000); // 0.01 USDC / 1 cent (6 decimals)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -34,10 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Transaction not found — may still be pending' });
   }
 
-  if (receipt.to?.toLowerCase() !== USDC_BASE.toLowerCase()) {
-    return res.status(400).json({ error: 'Transaction target is not the USDC contract on Base' });
-  }
-
+  // Accept any tx that contains a USDC Transfer to the agent (Smart Wallets may send via relayer/batch, so receipt.to might not be USDC)
   const agentTopic = '0x000000000000000000000000' + agentWallet.slice(2).toLowerCase();
   const transferLog = receipt.logs.find(
     log =>

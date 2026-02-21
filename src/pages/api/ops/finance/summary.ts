@@ -6,8 +6,8 @@ const BASE_RPC = 'https://mainnet.base.org';
 const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const USDC_ABI = ['function balanceOf(address) view returns (uint256)'];
 
-// $1.00 USDC per vendor onboarding fee
-const ONBOARDING_FEE_USD = 1.0;
+// $0.01 USDC per vendor onboarding fee (1 cent)
+const ONBOARDING_FEE_USD = 0.01;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

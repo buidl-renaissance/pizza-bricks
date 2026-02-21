@@ -309,7 +309,7 @@ export function OverviewTab() {
               ${financeLoading ? '—' : finance?.revenueUsd ?? '0.00'}
             </FinanceValue>
             <FinanceSub>
-              {finance?.revenueVendorFees ?? 0} onboarding{finance?.revenueVendorFees === 1 ? '' : 's'} @ $1 USDC
+              {finance?.revenueVendorFees ?? 0} onboarding{finance?.revenueVendorFees === 1 ? '' : 's'} @ $0.01
             </FinanceSub>
           </FinanceCard>
           <FinanceCard>
