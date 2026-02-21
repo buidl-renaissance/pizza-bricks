@@ -15,13 +15,9 @@
     "seed-demo": "npx tsx scripts/seed-demo-vendors.ts"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@anthropic-ai/sdk": "^0.78.0",
-=======
     "@coinbase/onchainkit": "^1.1.2",
->>>>>>> 2eea215 (latest)
     "@google/generative-ai": "^0.24.1",
-    "@google/model-viewer": "^4.0.0",
     "@libsql/client": "^0.15.15",
     "@supabase/supabase-js": "^2.97.0",
     "@tanstack/react-query": "^5.90.21",
@@ -38,15 +34,10 @@
     "recharts": "^3.7.0",
     "resend": "^6.9.2",
     "styled-components": "^6.1.18",
-<<<<<<< HEAD
-    "three": "^0.170.0",
-    "uuid": "^11.1.0",
-    "zod": "^4.3.6"
-=======
+    "zod": "^4.3.6",
     "uuid": "^11.1.0",
     "viem": "^2.46.2",
     "wagmi": "^2.19.5"
->>>>>>> 2eea215 (latest)
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
