@@ -99,8 +99,18 @@ export default function OutreachPage() {
   const [vendors, setVendors] = useState<VendorResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('food truck');
+  const [demoOnly, setDemoOnly] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [gmailAccount, setGmailAccount] = useState<string | null>(null);
+
+  // Inbox / reply processing state
+  const [checkingReplies, setCheckingReplies] = useState(false);
+  const [analyzingReplies, setAnalyzingReplies] = useState(false);
+  const [inboxResult, setInboxResult] = useState<{
+    newReplies: number;
+    processed?: number;
+    results?: { vendorName: string; intent: string; confidence: number; summary: string; prospectCode?: string; followUpSent?: boolean }[];
+  } | null>(null);
 
   // Handle Gmail OAuth callback redirect
   useEffect(() => {
@@ -125,27 +135,42 @@ export default function OutreachPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendConfirm, setSendConfirm] = useState(false);
   const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [quickSendingId, setQuickSendingId] = useState<string | null>(null);
 
   const handleSendEmail = useCallback(async () => {
     if (!draftPreview) return;
     setSendingEmail(true);
     setSendResult(null);
     try {
-      // Check if Gmail is connected first
-      const checkRes = await fetch('/api/auth/gmail/status');
-      const checkData = await checkRes.json();
+      const res = await fetch('/api/outreach/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: draftPreview.emailId }),
+      });
+      const data = await res.json();
 
-      if (!checkData.connected) {
+      if (res.status === 401 && data.code === 'GMAIL_NOT_CONFIGURED') {
         window.location.href = '/api/auth/gmail';
         return;
       }
 
-      // TODO: wire up actual send later
-      setSendResult({ success: true, message: `Gmail connected as ${checkData.account} — sending not yet enabled` });
-      setGmailAccount(checkData.account);
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+
+      setSendResult({ success: true, message: `Sent to ${data.sentTo}` });
       setSendConfirm(false);
+
+      // Update vendor status in local state
+      setVendors(prev => prev.map(v =>
+        v.id === draftPreview.vendorId ? { ...v, status: 'contacted' } : v
+      ));
+
+      // Auto-close modal after 2s
+      setTimeout(() => {
+        setDraftPreview(null);
+        setSendResult(null);
+      }, 2000);
     } catch (err) {
-      setSendResult({ success: false, message: err instanceof Error ? err.message : 'Check failed' });
+      setSendResult({ success: false, message: err instanceof Error ? err.message : 'Send failed' });
     } finally {
       setSendingEmail(false);
     }
@@ -183,6 +208,132 @@ export default function OutreachPage() {
     }
   }, []);
 
+  // Draft + send in one click from the vendor card
+  const handleQuickSend = useCallback(async (vendor: VendorResult) => {
+    if (!vendor.email) return;
+    setQuickSendingId(vendor.id);
+    try {
+      // Draft first
+      const draftRes = await fetch('/api/outreach/draft-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendorId: vendor.id }),
+      });
+      const draftData = await draftRes.json();
+      if (!draftRes.ok) throw new Error(draftData.error || 'Draft failed');
+
+      // Then send immediately
+      const sendRes = await fetch('/api/outreach/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: draftData.emailId }),
+      });
+      const sendData = await sendRes.json();
+
+      if (sendRes.status === 401 && sendData.code === 'GMAIL_NOT_CONFIGURED') {
+        window.location.href = '/api/auth/gmail';
+        return;
+      }
+      if (!sendRes.ok) throw new Error(sendData.error || 'Send failed');
+
+      // Update vendor status in local state
+      setVendors(prev => prev.map(v =>
+        v.id === vendor.id ? { ...v, status: 'contacted' } : v
+      ));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send email');
+    } finally {
+      setQuickSendingId(null);
+    }
+  }, []);
+
+  const [processingInbox, setProcessingInbox] = useState(false);
+
+  const handleCheckReplies = async () => {
+    setCheckingReplies(true);
+    setInboxResult(null);
+    try {
+      const res = await fetch('/api/outreach/check-replies', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check replies');
+      setInboxResult({ newReplies: data.newReplies });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check replies');
+    } finally {
+      setCheckingReplies(false);
+    }
+  };
+
+  const handleAnalyzeReplies = async () => {
+    setAnalyzingReplies(true);
+    try {
+      const res = await fetch('/api/outreach/analyze-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analyzeAll: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to analyze replies');
+      setInboxResult(prev => ({
+        newReplies: prev?.newReplies ?? 0,
+        processed: data.processed,
+        results: data.results,
+      }));
+      if (data.results?.length > 0) {
+        setVendors(prev => prev.map(v => {
+          const match = data.results.find((r: { vendorId: string; intent: string }) => r.vendorId === v.id);
+          if (!match) return v;
+          if (match.intent === 'interested') return { ...v, status: 'onboarding' };
+          if (match.intent === 'not_interested') return { ...v, status: 'dismissed' };
+          return v;
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze replies');
+    } finally {
+      setAnalyzingReplies(false);
+    }
+  };
+
+  // Combined: check then immediately analyze
+  const handleProcessInbox = async () => {
+    setProcessingInbox(true);
+    setInboxResult(null);
+    try {
+      const checkRes = await fetch('/api/outreach/check-replies', { method: 'POST' });
+      const checkData = await checkRes.json();
+      if (!checkRes.ok) throw new Error(checkData.error || 'Failed to check replies');
+
+      const analyzeRes = await fetch('/api/outreach/analyze-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analyzeAll: true }),
+      });
+      const analyzeData = await analyzeRes.json();
+      if (!analyzeRes.ok) throw new Error(analyzeData.error || 'Failed to analyze replies');
+
+      setInboxResult({
+        newReplies: checkData.newReplies,
+        processed: analyzeData.processed,
+        results: analyzeData.results,
+      });
+
+      if (analyzeData.results?.length > 0) {
+        setVendors(prev => prev.map(v => {
+          const match = analyzeData.results.find((r: { vendorId: string; intent: string }) => r.vendorId === v.id);
+          if (!match) return v;
+          if (match.intent === 'interested') return { ...v, status: 'onboarding' };
+          if (match.intent === 'not_interested') return { ...v, status: 'dismissed' };
+          return v;
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process inbox');
+    } finally {
+      setProcessingInbox(false);
+    }
+  };
+
   const handleSearch = async () => {
     setLoading(true);
     setError(null);
@@ -195,6 +346,7 @@ export default function OutreachPage() {
         body: JSON.stringify({
           keyword,
           radiusMiles: radius,
+          demoOnly,
         }),
       });
 
@@ -272,7 +424,72 @@ export default function OutreachPage() {
             {loading ? 'Scanning...' : 'Search'}
           </SearchButton>
         </SearchRow>
+        <DemoToggleRow>
+          <DemoToggleLabel>
+            <DemoToggleInput
+              type="checkbox"
+              checked={demoOnly}
+              onChange={e => setDemoOnly(e.target.checked)}
+            />
+            Demo mode <DemoToggleHint>(skip live API calls — use seeded test vendors only)</DemoToggleHint>
+          </DemoToggleLabel>
+        </DemoToggleRow>
       </SearchPanel>
+
+      <InboxPanel>
+        <InboxTitleRow>
+          <InboxTitle>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+            </svg>
+            Inbox
+          </InboxTitle>
+          <InboxActions>
+            <InboxButton onClick={handleCheckReplies} disabled={checkingReplies || analyzingReplies || processingInbox}>
+              {checkingReplies ? 'Checking...' : 'Check'}
+            </InboxButton>
+            <InboxButton onClick={handleAnalyzeReplies} disabled={checkingReplies || analyzingReplies || processingInbox}>
+              {analyzingReplies ? 'Analyzing...' : 'Analyze'}
+            </InboxButton>
+            <InboxButton
+              $primary
+              onClick={handleProcessInbox}
+              disabled={checkingReplies || analyzingReplies || processingInbox}
+            >
+              {processingInbox ? 'Processing...' : '⚡ Process Inbox'}
+            </InboxButton>
+          </InboxActions>
+        </InboxTitleRow>
+
+        {inboxResult && (
+          <InboxResultsBox>
+            <InboxStat>
+              {inboxResult.newReplies > 0
+                ? `${inboxResult.newReplies} new ${inboxResult.newReplies === 1 ? 'reply' : 'replies'} found. `
+                : 'No new replies. '}
+              {inboxResult.processed !== undefined && (
+                inboxResult.processed === 0
+                  ? 'Nothing to analyze.'
+                  : `${inboxResult.processed} analyzed — auto-replies sent.`
+              )}
+            </InboxStat>
+            {inboxResult.results?.map((r, i) => (
+              <ReplyResultRow key={i} $intent={r.intent}>
+                <ReplyResultName>{r.vendorName}</ReplyResultName>
+                <IntentBadge $intent={r.intent}>{r.intent.replace(/_/g, ' ')}</IntentBadge>
+                <ReplyResultSummary>{r.summary}</ReplyResultSummary>
+                <ReplyResultMeta>
+                  {r.autoReplySent && <AutoReplyBadge>↩ auto-replied</AutoReplyBadge>}
+                  {r.prospectCode && (
+                    <ProspectCodePill>#{r.prospectCode}</ProspectCodePill>
+                  )}
+                </ReplyResultMeta>
+              </ReplyResultRow>
+            ))}
+          </InboxResultsBox>
+        )}
+      </InboxPanel>
 
       <ResultsHeader>
         <ResultCount>
@@ -327,6 +544,8 @@ export default function OutreachPage() {
           {vendors.map(vendor => {
             const reviews = parseReviews(vendor).slice(0, 3);
             const isDrafting = draftingVendorId === vendor.id;
+            const isQuickSending = quickSendingId === vendor.id;
+            const isContacted = vendor.status === 'contacted';
 
             return (
             <VendorCard key={vendor.id}>
@@ -436,13 +655,25 @@ export default function OutreachPage() {
                   <ActionRow>
                     <DraftButton
                       onClick={() => handleDraftPreview(vendor)}
-                      disabled={isDrafting}
+                      disabled={isDrafting || isQuickSending}
                     >
                       {isDrafting ? 'Drafting...' : 'Preview Draft'}
                     </DraftButton>
-                    <CampaignButton disabled>
-                      Send (Disabled)
-                    </CampaignButton>
+                    {isContacted ? (
+                      <SentBadge>✓ Sent</SentBadge>
+                    ) : vendor.email ? (
+                      <CampaignButton
+                        onClick={() => handleQuickSend(vendor)}
+                        disabled={isQuickSending || isDrafting}
+                        $active
+                      >
+                        {isQuickSending ? 'Sending...' : 'Send Email'}
+                      </CampaignButton>
+                    ) : (
+                      <CampaignButton disabled $active={false}>
+                        No Email
+                      </CampaignButton>
+                    )}
                   </ActionRow>
                 </CardActions>
               </CardBody>
@@ -698,6 +929,168 @@ const SearchButton = styled.button`
     opacity: 0.6;
     cursor: not-allowed;
   }
+`;
+
+const DemoToggleRow = styled.div`
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid ${p => p.theme.border};
+`;
+
+const DemoToggleLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: ${p => p.theme.text};
+  cursor: pointer;
+`;
+
+const DemoToggleInput = styled.input`
+  width: 16px;
+  height: 16px;
+  accent-color: ${p => p.theme.accent};
+  cursor: pointer;
+`;
+
+const DemoToggleHint = styled.span`
+  color: ${p => p.theme.textMuted};
+  font-weight: 400;
+`;
+
+const InboxPanel = styled.div`
+  background: ${p => p.theme.surface};
+  border: 1px solid ${p => p.theme.border};
+  border-radius: ${p => p.theme.borderRadius};
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const InboxTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const InboxTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: ${p => p.theme.textMuted};
+`;
+
+const InboxActions = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const InboxButton = styled.button<{ $primary?: boolean }>`
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid ${p => p.$primary ? p.theme.accent : p.theme.border};
+  background: ${p => p.$primary ? p.theme.accent : 'transparent'};
+  color: ${p => p.$primary ? 'white' : p.theme.text};
+  transition: background 0.15s, opacity 0.15s;
+
+  &:hover:not(:disabled) {
+    background: ${p => p.$primary ? p.theme.accentHover : p.theme.surfaceHover};
+  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+
+const InboxResultsBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+`;
+
+const InboxStat = styled.div`
+  font-size: 0.83rem;
+  color: ${p => p.theme.textSecondary};
+`;
+
+const intentColor = (intent: string, theme: { success: string; danger: string; warning: string; textMuted: string }) => {
+  if (intent === 'interested') return theme.success;
+  if (intent === 'not_interested') return theme.danger;
+  if (intent === 'needs_follow_up') return theme.warning;
+  return theme.textMuted;
+};
+
+const ReplyResultRow = styled.div<{ $intent: string }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: ${p => p.theme.backgroundAlt};
+  border-left: 3px solid ${p => intentColor(p.$intent, p.theme)};
+`;
+
+const ReplyResultName = styled.span`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${p => p.theme.text};
+`;
+
+const IntentBadge = styled.span<{ $intent: string }>`
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: ${p => intentColor(p.$intent, p.theme)};
+  background: ${p => `${intentColor(p.$intent, p.theme)}18`};
+  border: 1px solid ${p => `${intentColor(p.$intent, p.theme)}40`};
+`;
+
+const ReplyResultSummary = styled.span`
+  font-size: 0.8rem;
+  color: ${p => p.theme.textSecondary};
+  flex: 1;
+  min-width: 0;
+`;
+
+const ReplyResultMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+`;
+
+const AutoReplyBadge = styled.span`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: ${p => p.theme.success};
+  background: ${p => `${p.theme.success}18`};
+  border: 1px solid ${p => `${p.theme.success}40`};
+  padding: 2px 8px;
+  border-radius: 20px;
+`;
+
+const ProspectCodePill = styled.span`
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Space Grotesk', monospace;
+  color: ${p => p.theme.accent};
+  background: ${p => p.theme.accentMuted};
+  padding: 2px 10px;
+  border-radius: 20px;
 `;
 
 const ResultsHeader = styled.div`
@@ -1139,15 +1532,33 @@ const DraftButton = styled.button`
   }
 `;
 
-const CampaignButton = styled.button`
+const CampaignButton = styled.button<{ $active?: boolean }>`
   flex: 1;
   padding: 10px;
   border-radius: ${p => p.theme.borderRadius};
   font-size: 0.85rem;
   font-weight: 600;
-  background: ${p => p.theme.border};
-  color: ${p => p.theme.textMuted};
-  cursor: not-allowed;
+  background: ${p => p.$active ? '#10B981' : p.theme.border};
+  color: ${p => p.$active ? 'white' : p.theme.textMuted};
+  cursor: ${p => p.disabled ? 'not-allowed' : 'pointer'};
+  transition: background 0.15s ease, opacity 0.15s ease;
+  opacity: ${p => p.disabled ? 0.6 : 1};
+
+  &:hover:not(:disabled) {
+    background: ${p => p.$active ? '#059669' : p.theme.border};
+  }
+`;
+
+const SentBadge = styled.div`
+  flex: 1;
+  padding: 10px;
+  border-radius: ${p => p.theme.borderRadius};
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 `;
 
 const fadeIn = keyframes`

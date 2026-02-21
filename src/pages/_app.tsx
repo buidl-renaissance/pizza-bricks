@@ -5,7 +5,6 @@ import { StyleSheetManager } from "styled-components";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { GlobalStyle } from "@/styles/globalStyles";
-import { Analytics } from "@vercel/analytics/react";
 import { OnchainProviders } from "@/providers/OnchainProviders";
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -16,7 +15,6 @@ export default function App({ Component, pageProps }: AppProps) {
           <StyleSheetManager shouldForwardProp={(prop) => !prop.startsWith('$')}>
             <GlobalStyle />
             <Component {...pageProps} />
-            <Analytics />
           </StyleSheetManager>
         </OnchainProviders>
       </UserProvider>

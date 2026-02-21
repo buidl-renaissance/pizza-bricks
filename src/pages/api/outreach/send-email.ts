@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: `No email address on file for ${vendor.name}` });
     }
 
-    const { messageId } = await sendEmail({
+    const { messageId, threadId } = await sendEmail({
       to: vendor.email,
       subject: email.subject,
       bodyHtml: email.bodyHtml,
@@ -54,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await db.update(outreachEmails).set({
       status: 'sent',
       gmailMessageId: messageId,
+      gmailThreadId: threadId,
       sentAt: new Date(),
     }).where(eq(outreachEmails.id, emailId));
 

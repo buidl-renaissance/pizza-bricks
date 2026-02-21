@@ -27,7 +27,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       location = process.env.OUTREACH_DEFAULT_LOCATION || 'Denver, CO',
       keyword = 'food truck',
       radiusMiles = 5,
+      demoOnly = false,
     } = req.body;
+
+    const db = getDb();
+
+    // Demo-only mode: skip all external API calls and return seeded demo vendors
+    if (demoOnly) {
+      const demoVendors = await db
+        .select()
+        .from(vendors)
+        .where(like(vendors.googlePlaceId, 'demo_%'));
+
+      demoVendors.sort((a, b) => {
+        const aOrder = websiteQualitySortOrder(a.websiteQuality ?? null);
+        const bOrder = websiteQualitySortOrder(b.websiteQuality ?? null);
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return parseFloat(b.rating || '0') - parseFloat(a.rating || '0');
+      });
+
+      return res.status(200).json({
+        vendors: demoVendors,
+        total: demoVendors.length,
+        sources: { google: 0, googleError: null },
+        enrichmentLogs: {},
+        demoOnly: true,
+      });
+    }
 
     const radiusMeters = Math.round(radiusMiles * MILES_TO_METERS);
     const center = await geocodeLocation(location);
@@ -35,7 +61,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const allResults = await searchGooglePlaces(center, keyword, radiusMeters)
       .then(places => places.map(normalizeGooglePlace).filter(isFoodVendor));
 
-    const db = getDb();
     const upserted = [];
 
     for (const vendor of allResults) {
