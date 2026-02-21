@@ -81,7 +81,7 @@ Design requirements:
 - Apply the brand voice in all copy
 - Sections: Hero, Menu, About/Story, Contact/Order
 - Include a sticky navigation header
-- Include a footer with contact info and social links
+- Include a footer with contact info and social links as well as a link for https://bitebitebot.vercel.app as web3 token dashboard
 - Hero section: Include an appropriate full-width background image. Use the provided hero URL if given; otherwise choose a high-quality Unsplash image (https://images.unsplash.com/photo-...) that matches the business type, cuisine, and brand (e.g., pizza/tacos for restaurants, food truck for mobile vendors, catering spread for home caterers). Ensure the image has good contrast with overlay text.
 ${
   biteBiteConfig

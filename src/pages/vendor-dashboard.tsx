@@ -4,10 +4,10 @@ import styled, { keyframes } from 'styled-components';
 import { ConnectWallet, Wallet } from '@coinbase/onchainkit/wallet';
 import { FundButton } from '@coinbase/onchainkit/fund';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
+import { baseSepolia } from 'wagmi/chains';
+import { useUser } from '@/contexts/UserContext';
 
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
-const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
 const AGENT_WALLET = (process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS ?? '') as `0x${string}`;
 const APP_NAME = 'Pizza Bricks';
 
@@ -251,196 +251,23 @@ function AdiBalanceCard() {
   );
 }
 
-function AgentFundingCard() {
-  const [copied, setCopied] = useState(false);
-  const { data: agentUsdc, isLoading } = useBalance({
-    address: AGENT_WALLET || undefined,
-    token: USDC_BASE_MAINNET,
-    chainId: base.id,
-    query: { enabled: !!AGENT_WALLET, refetchInterval: 30_000 },
-  });
-
-  const copyAddress = useCallback(async () => {
-    if (!AGENT_WALLET) return;
-    await navigator.clipboard.writeText(AGENT_WALLET);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  }, []);
-
-
-  return (
-    <FundingCard>
-      <FundingHeader>
-        <CardLabel style={{ margin: 0 }}>Agent Wallet — Marketing Funds</CardLabel>
-        <FundingBadge>Base Mainnet</FundingBadge>
-      </FundingHeader>
-
-      <FundingBalanceRow>
-        <FundingAmount>
-          {isLoading ? '…' : agentUsdc ? parseFloat(agentUsdc.formatted).toFixed(2) : '0.00'}
-        </FundingAmount>
-        <FundingCurrency>USDC</FundingCurrency>
-      </FundingBalanceRow>
-
-      <FundingDesc>
-        Funds the AI outreach agent — covers email sends, vendor discovery, and onchain transactions.
-      </FundingDesc>
-
-      {AGENT_WALLET && (
-        <FundingAddressRow>
-          <FundingAddress title={AGENT_WALLET}>
-            {AGENT_WALLET.slice(0, 10)}…{AGENT_WALLET.slice(-8)}
-          </FundingAddress>
-          <FundingCopyBtn onClick={copyAddress} title="Copy address">
-            {copied ? (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            )}
-            {copied ? 'Copied!' : 'Copy'}
-          </FundingCopyBtn>
-        </FundingAddressRow>
-      )}
-
-      <FundingActions>
-        <FundButton />
-        <FundingLink
-          href={`https://basescan.org/address/${AGENT_WALLET}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          Basescan
-        </FundingLink>
-      </FundingActions>
-    </FundingCard>
-  );
-}
-
-type IdentityState =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'registered'; agentId: string; basescanUrl: string; agentURI: string }
-  | { status: 'error'; message: string };
-
-function AgentIdentityCard() {
-  const [state, setState] = useState<IdentityState>({ status: 'idle' });
-
-  const register = useCallback(async () => {
-    setState({ status: 'loading' });
-    try {
-      const res = await fetch('/api/agent/register-identity', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        setState({ status: 'error', message: data.error ?? 'Registration failed' });
-        return;
-      }
-      if (data.alreadyRegistered) {
-        setState({
-          status: 'registered',
-          agentId: data.agentId,
-          basescanUrl: data.basescanUrl,
-          agentURI: data.agentURI,
-        });
-        return;
-      }
-      setState({
-        status: 'registered',
-        agentId: data.agentId,
-        basescanUrl: data.basescanUrl,
-        agentURI: data.agentURI,
-      });
-    } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Network error' });
-    }
-  }, []);
-
-  const isRegistered = state.status === 'registered';
-  const isLoading = state.status === 'loading';
-
-  return (
-    <IdentityCard>
-      <IdentityHeader>
-        <CardLabel style={{ margin: 0 }}>ERC-8004 Agent Identity</CardLabel>
-        <IdentityBadge $registered={isRegistered}>
-          {isRegistered ? 'Registered' : 'Base Mainnet'}
-        </IdentityBadge>
-      </IdentityHeader>
-
-      <IdentityDesc>
-        Register this agent in the ERC-8004 Trustless Agents Identity Registry on Base mainnet.
-        Once registered, the agent receives a unique on-chain ID tied to{' '}
-        <code style={{ fontSize: '0.78rem' }}>/agent.json</code> — making its identity verifiable
-        by other agents and protocols.
-      </IdentityDesc>
-
-      {isRegistered && (
-        <IdentityAgentId>
-          Agent ID: #{state.agentId}
-          {'  ·  '}
-          <span style={{ color: '#6366f1', wordBreak: 'break-all' }}>{state.agentURI}</span>
-        </IdentityAgentId>
-      )}
-
-      <IdentityActions>
-        {!isRegistered && (
-          <RegisterBtn $loading={isLoading} onClick={register} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" strokeDasharray="28" strokeDashoffset="10" />
-                </svg>
-                Registering…
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 3" />
-                </svg>
-                Register Agent
-              </>
-            )}
-          </RegisterBtn>
-        )}
-        <IdentityLink
-          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/agent.json`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          agent.json
-        </IdentityLink>
-        {isRegistered && (
-          <IdentityLink href={state.basescanUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            Basescan
-          </IdentityLink>
-        )}
-      </IdentityActions>
-
-      {state.status === 'error' && (
-        <IdentityError>{state.message}</IdentityError>
-      )}
-    </IdentityCard>
-  );
-}
-
 export default function VendorDashboard() {
   const { address, isConnected } = useAccount();
+  const { user } = useUser();
+  const linkedAccountAddress = user?.accountAddress ?? null;
+  const isLinkedAccountMatch =
+    !!address &&
+    !!linkedAccountAddress &&
+    address.toLowerCase() === linkedAccountAddress.toLowerCase();
+
+  const isConnectedAgentWallet =
+    !!address &&
+    !!AGENT_WALLET &&
+    address.toLowerCase() === AGENT_WALLET.toLowerCase();
+  const linkedIsVendorWallet =
+    !!linkedAccountAddress &&
+    (!AGENT_WALLET || linkedAccountAddress.toLowerCase() !== AGENT_WALLET.toLowerCase());
+
   const { data: ethBalance } = useBalance({ address, chainId: baseSepolia.id });
   const { data: usdcBalance } = useBalance({
     address,
@@ -460,9 +287,11 @@ export default function VendorDashboard() {
             {isConnected && address ? (
               <WalletMenu address={address} />
             ) : (
-              <Wallet>
-                <ConnectWallet />
-              </Wallet>
+              <HeaderConnectWrap>
+                <Wallet>
+                  <ConnectWallet />
+                </Wallet>
+              </HeaderConnectWrap>
             )}
           </WalletArea>
         </Header>
@@ -481,6 +310,7 @@ export default function VendorDashboard() {
               <PromptText>
                 Connect with Coinbase Smart Wallet to view your balance, fund your account, and manage transactions on Base.
               </PromptText>
+              <ConnectButtonLabel>Click the button below to connect</ConnectButtonLabel>
               <ConnectButtonWrapper>
                 <Wallet>
                   <ConnectWallet />
@@ -489,8 +319,16 @@ export default function VendorDashboard() {
             </ConnectPrompt>
           ) : (
             <DashboardGrid>
+              {isConnectedAgentWallet && (
+                <AgentWalletWarning>
+                  You're connected with the agent wallet. Connect your vendor wallet to view and manage your vendor funds.
+                </AgentWalletWarning>
+              )}
               <BalanceCard>
                 <CardLabel>USDC Balance</CardLabel>
+                {isConnectedAgentWallet && (
+                  <BalanceCardNote>Showing agent wallet — connect your vendor wallet for your funds</BalanceCardNote>
+                )}
                 <BalanceRow>
                   <BalanceAmount>
                     ${usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
@@ -507,10 +345,6 @@ export default function VendorDashboard() {
 
               <AdiBalanceCard />
 
-              <AgentFundingCard />
-
-              <AgentIdentityCard />
-
               <NetworkCard>
                 <CardLabel>Network</CardLabel>
                 <NetworkInfo>
@@ -518,7 +352,34 @@ export default function VendorDashboard() {
                   Base Sepolia (Testnet)
                 </NetworkInfo>
                 <NetworkDetail>
-                  {address && <AddressDisplay>{address}</AddressDisplay>}
+                  {address && (
+                    <>
+                      <AccountLabel>
+                        {isConnectedAgentWallet
+                          ? linkedIsVendorWallet
+                            ? 'Your vendor wallet'
+                            : 'Agent wallet (connect your vendor wallet)'
+                          : linkedAccountAddress && isLinkedAccountMatch
+                            ? 'Your account (Smart wallet)'
+                            : 'Smart wallet'}
+                      </AccountLabel>
+                      <AddressDisplay>
+                        {isConnectedAgentWallet && linkedIsVendorWallet
+                          ? linkedAccountAddress
+                          : address}
+                      </AddressDisplay>
+                      {isConnectedAgentWallet && linkedIsVendorWallet && (
+                        <LinkedAccountLine>
+                          Connect this wallet to see your balance
+                        </LinkedAccountLine>
+                      )}
+                      {!isConnectedAgentWallet && linkedAccountAddress && !isLinkedAccountMatch && (
+                        <LinkedAccountLine>
+                          Linked account: {shortenAddress(linkedAccountAddress)}
+                        </LinkedAccountLine>
+                      )}
+                    </>
+                  )}
                 </NetworkDetail>
               </NetworkCard>
 
@@ -603,17 +464,26 @@ const Header = styled.header`
   padding: 0.75rem 1.5rem;
   background: ${({ theme }) => theme.surface};
   border-bottom: 1px solid ${({ theme }) => theme.border};
+  color: #ffffff;
 `;
 
 const Logo = styled.div`
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
+  color: #ffffff;
 `;
 
 const WalletArea = styled.div`
   display: flex;
   align-items: center;
+`;
+
+const HeaderConnectWrap = styled.div`
+  color: #ffffff;
+  & a, & button, & span {
+    color: #ffffff !important;
+  }
 `;
 
 const Main = styled.main`
@@ -862,27 +732,53 @@ const ConnectPrompt = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 4rem 1rem;
-  gap: 1rem;
+  padding: 3rem 1.5rem;
+  gap: 1.25rem;
+  margin: 2rem 0;
+  background: ${({ theme }) => theme.surface};
+  border: 2px solid ${({ theme }) => theme.accent};
+  border-radius: 16px;
+  box-shadow: 0 0 0 1px ${({ theme }) => theme.border}, 0 4px 24px ${({ theme }) => theme.accent}20;
+  color: #ffffff;
 `;
 
 const PromptIcon = styled.div`
   color: ${({ theme }) => theme.accent};
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  & svg {
+    width: 64px;
+    height: 64px;
+  }
 `;
 
 const PromptTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 `;
 
 const PromptText = styled.p`
-  color: ${({ theme }) => theme.textSecondary};
-  max-width: 400px;
+  color: #f5f5f5;
+  max-width: 420px;
   line-height: 1.6;
+  margin: 0;
+  font-size: 0.95rem;
+`;
+
+const ConnectButtonLabel = styled.span`
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
 `;
 
 const ConnectButtonWrapper = styled.div`
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  padding: 1.25rem 1.75rem;
+  background: ${({ theme }) => theme.accentMuted ?? 'rgba(99, 102, 241, 0.12)'};
+  border: 2px solid ${({ theme }) => theme.accent};
+  border-radius: 12px;
 `;
 
 /* ─── dashboard cards ─────────────────────────────────────────────── */
@@ -890,6 +786,15 @@ const DashboardGrid = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+`;
+
+const AgentWalletWarning = styled.div`
+  padding: 0.75rem 1rem;
+  background: ${({ theme }) => theme.warning ? `${theme.warning}20` : 'rgba(245, 158, 11, 0.15)'};
+  border: 1px solid ${({ theme }) => theme.warning ?? '#F59E0B'};
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.text};
 `;
 
 const Card = styled.div`
@@ -909,6 +814,12 @@ const CardLabel = styled.div`
 `;
 
 const BalanceCard = styled(Card)``;
+
+const BalanceCardNote = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 0.5rem;
+`;
 
 const BalanceRow = styled.div`
   display: flex;
@@ -972,6 +883,15 @@ const NetworkDetail = styled.div`
   margin-top: 0.5rem;
 `;
 
+const AccountLabel = styled.div`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
 const AddressDisplay = styled.code`
   font-size: 0.75rem;
   color: ${({ theme }) => theme.textSecondary};
@@ -979,6 +899,13 @@ const AddressDisplay = styled.code`
   padding: 4px 8px;
   border-radius: 4px;
   word-break: break-all;
+  display: block;
+`;
+
+const LinkedAccountLine = styled.div`
+  font-size: 0.7rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-top: 6px;
 `;
 
 const QuickActions = styled(Card)``;
@@ -1118,186 +1045,3 @@ const AdiError = styled.div`
 `;
 
 
-// ── Agent Funding Card ────────────────────────────────────────────────────────
-const FundingCard = styled(Card)`
-  border-color: #0052ff33;
-  background: linear-gradient(135deg, ${({ theme }) => theme.surface} 80%, #0052ff06 100%);
-  grid-column: span 2;
-
-  @media (max-width: 700px) { grid-column: span 1; }
-`;
-
-const FundingHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-`;
-
-const FundingBadge = styled.span`
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #0052ff;
-  background: #0052ff18;
-  padding: 2px 8px;
-  border-radius: 20px;
-`;
-
-const FundingBalanceRow = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-`;
-
-const FundingAmount = styled.div`
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-`;
-
-const FundingCurrency = styled.span`
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #0052ff;
-  background: #0052ff18;
-  padding: 2px 8px;
-  border-radius: 4px;
-`;
-
-const FundingDesc = styled.p`
-  font-size: 0.8rem;
-  color: ${({ theme }) => theme.textSecondary};
-  margin-bottom: 0.75rem;
-  line-height: 1.5;
-`;
-
-const FundingAddressRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-`;
-
-const FundingAddress = styled.code`
-  font-size: 0.78rem;
-  color: ${({ theme }) => theme.textMuted};
-  background: ${({ theme }) => theme.backgroundAlt};
-  padding: 4px 10px;
-  border-radius: 6px;
-`;
-
-const FundingCopyBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: ${({ theme }) => theme.textSecondary};
-  background: ${({ theme }) => theme.backgroundAlt};
-  padding: 4px 10px;
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
-  &:hover { color: ${({ theme }) => theme.text}; background: ${({ theme }) => theme.border}; }
-`;
-
-const FundingActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-`;
-
-const FundingLink = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.textSecondary};
-  text-decoration: none;
-  padding: 7px 14px;
-  border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 8px;
-  transition: color 0.15s, border-color 0.15s;
-  &:hover { color: ${({ theme }) => theme.text}; border-color: ${({ theme }) => theme.textSecondary}; }
-`;
-
-// ── ERC-8004 Identity ─────────────────────────────────────────────────────────
-const IdentityCard = styled(Card)`
-  border-left: 3px solid #6366f1;
-`;
-const IdentityHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-`;
-const IdentityBadge = styled.span<{ $registered?: boolean }>`
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: ${({ $registered }) => ($registered ? '#d1fae5' : '#e0e7ff')};
-  color: ${({ $registered }) => ($registered ? '#065f46' : '#3730a3')};
-`;
-const IdentityDesc = styled.p`
-  font-size: 0.82rem;
-  color: ${({ theme }) => theme.textSecondary};
-  margin: 0 0 14px;
-  line-height: 1.55;
-`;
-const IdentityAgentId = styled.div`
-  font-size: 0.8rem;
-  font-family: monospace;
-  background: ${({ theme }) => theme.surface ?? '#f3f4f6'};
-  border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 12px;
-  color: ${({ theme }) => theme.text};
-  word-break: break-all;
-`;
-const IdentityActions = styled.div`
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-`;
-const RegisterBtn = styled.button<{ $loading?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  cursor: ${({ $loading }) => ($loading ? 'not-allowed' : 'pointer')};
-  background: #6366f1;
-  color: #fff;
-  opacity: ${({ $loading }) => ($loading ? 0.7 : 1)};
-  transition: background 0.15s, opacity 0.15s;
-  &:hover:not(:disabled) { background: #4f46e5; }
-`;
-const IdentityLink = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.textSecondary};
-  text-decoration: none;
-  padding: 7px 14px;
-  border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 8px;
-  transition: color 0.15s, border-color 0.15s;
-  &:hover { color: ${({ theme }) => theme.text}; border-color: ${({ theme }) => theme.textSecondary}; }
-`;
-const IdentityError = styled.div`
-  font-size: 0.8rem;
-  color: #e53e3e;
-  margin-top: 8px;
-`;

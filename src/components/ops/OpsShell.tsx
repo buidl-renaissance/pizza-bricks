@@ -20,6 +20,7 @@ const CampaignsAmbassadorsTab = dynamic(() => import('./tabs/CampaignsAmbassador
 const CampaignsAssetsTab = dynamic(() => import('./tabs/CampaignsAssetsTab').then(m => ({ default: m.CampaignsAssetsTab })), { ssr: false });
 const CampaignsAnalyticsTab = dynamic(() => import('./tabs/CampaignsAnalyticsTab').then(m => ({ default: m.CampaignsAnalyticsTab })), { ssr: false });
 const AmbassadorRecruitingTab = dynamic(() => import('./tabs/AmbassadorRecruitingTab').then(m => ({ default: m.AmbassadorRecruitingTab })), { ssr: false });
+const SettingsRegisterAgentTab = dynamic(() => import('./tabs/SettingsRegisterAgentTab').then(m => ({ default: m.SettingsRegisterAgentTab })), { ssr: false });
 
 type Tab = { id: string; label: string; icon: string };
 type NavGroup = { id: string; label: string; icon: string; tabs: readonly Tab[] };
@@ -45,6 +46,14 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
       { id: 'campaigns-assets', label: 'Event Assets', icon: '🖼' },
       { id: 'campaigns-analytics', label: 'Analytics', icon: '📈' },
+    ],
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: '⚙️',
+    tabs: [
+      { id: 'settings-register-agent', label: 'Register Agent', icon: '🤖' },
     ],
   },
 ];
@@ -327,6 +336,7 @@ export function OpsShell() {
   });
   const [openPopoverGroupId, setOpenPopoverGroupId] = useState<string | null>(null);
   const campaignsButtonRef = useRef<HTMLButtonElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Redirect legacy ambassador-recruiting URL to campaigns recruiting
@@ -351,7 +361,8 @@ export function OpsShell() {
       const target = e.target as Node;
       if (
         popoverRef.current?.contains(target) ||
-        campaignsButtonRef.current?.contains(target)
+        campaignsButtonRef.current?.contains(target) ||
+        settingsButtonRef.current?.contains(target)
       ) {
         return;
       }
@@ -371,11 +382,14 @@ export function OpsShell() {
   };
 
   const campaignsGroup = NAV_GROUPS[0];
+  const settingsGroup = NAV_GROUPS[1];
   const [popoverTop, setPopoverTop] = useState(0);
 
   useEffect(() => {
     if (openPopoverGroupId === 'campaigns' && campaignsButtonRef.current) {
       setPopoverTop(campaignsButtonRef.current.getBoundingClientRect().bottom);
+    } else if (openPopoverGroupId === 'settings' && settingsButtonRef.current) {
+      setPopoverTop(settingsButtonRef.current.getBoundingClientRect().bottom);
     }
   }, [openPopoverGroupId]);
 
@@ -408,13 +422,15 @@ export function OpsShell() {
             const isExpanded = expandedGroups.has(group.id);
             const showSubItems = !isNarrow && isExpanded;
             const isCampaigns = group.id === 'campaigns';
+            const isSettings = group.id === 'settings';
+            const usePopoverWhenNarrow = isNarrow && (isCampaigns || isSettings);
 
             return (
               <NavGroup key={group.id}>
-                {isNarrow && isCampaigns ? (
+                {usePopoverWhenNarrow ? (
                   <PopoverAnchor>
                     <NavGroupHeader
-                      ref={campaignsButtonRef}
+                      ref={isCampaigns ? campaignsButtonRef : settingsButtonRef}
                       type="button"
                       $expanded={false}
                       $narrow={true}
@@ -426,10 +442,10 @@ export function OpsShell() {
                       <NavIcon>{group.icon}</NavIcon>
                       <NavGroupLabel $narrow>{group.label}</NavGroupLabel>
                     </NavGroupHeader>
-                    {isPopoverOpen && (
+                    {openPopoverGroupId === group.id && (
                       <Popover
                         ref={popoverRef}
-                        style={{ top: campaignsButtonRef.current?.getBoundingClientRect().bottom ?? 8 }}
+                        style={{ top: (isCampaigns ? campaignsButtonRef : settingsButtonRef).current?.getBoundingClientRect().bottom ?? 8 }}
                       >
                         {group.tabs.map(tab => (
                           <PopoverItem
@@ -522,6 +538,25 @@ export function OpsShell() {
           ))}
         </Popover>
       )}
+      {openPopoverGroupId === 'settings' && settingsGroup && (
+        <Popover ref={popoverRef} style={{ top: popoverTop }}>
+          {settingsGroup.tabs.map(tab => (
+            <PopoverItem
+              key={tab.id}
+              href={`/ops?tab=${tab.id}`}
+              $active={activeTab === tab.id}
+              onClick={(e) => {
+                e.preventDefault();
+                router.push(`/ops?tab=${tab.id}`, undefined, { shallow: true });
+                setOpenPopoverGroupId(null);
+              }}
+            >
+              <NavIcon>{tab.icon}</NavIcon>
+              {tab.label}
+            </PopoverItem>
+          ))}
+        </Popover>
+      )}
 
       <Content
         $fullWidth={activeTab === 'pipeline' || activeTab === 'outreach' || activeTab === 'campaigns-events'}
@@ -543,6 +578,7 @@ export function OpsShell() {
         {activeTab === 'campaigns-ambassadors' && <CampaignsAmbassadorsTab />}
         {activeTab === 'campaigns-assets' && <CampaignsAssetsTab />}
         {activeTab === 'campaigns-analytics' && <CampaignsAnalyticsTab />}
+        {activeTab === 'settings-register-agent' && <SettingsRegisterAgentTab />}
       </Content>
     </Shell>
   );
