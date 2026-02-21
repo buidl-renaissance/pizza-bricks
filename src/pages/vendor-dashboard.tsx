@@ -251,80 +251,6 @@ function AdiBalanceCard() {
   );
 }
 
-function AgentFundingCard() {
-  const [copied, setCopied] = useState(false);
-  const { data: agentUsdc, isLoading } = useBalance({
-    address: AGENT_WALLET || undefined,
-    token: USDC_BASE_MAINNET,
-    chainId: base.id,
-    query: { enabled: !!AGENT_WALLET, refetchInterval: 30_000 },
-  });
-
-  const copyAddress = useCallback(async () => {
-    if (!AGENT_WALLET) return;
-    await navigator.clipboard.writeText(AGENT_WALLET);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  }, []);
-
-
-  return (
-    <FundingCard>
-      <FundingHeader>
-        <CardLabel style={{ margin: 0 }}>Agent Wallet — Marketing Funds</CardLabel>
-        <FundingBadge>Base</FundingBadge>
-      </FundingHeader>
-
-      <FundingBalanceRow>
-        <FundingAmount>
-          {isLoading ? '…' : agentUsdc ? parseFloat(agentUsdc.formatted).toFixed(2) : '0.00'}
-        </FundingAmount>
-        <FundingCurrency>USDC</FundingCurrency>
-      </FundingBalanceRow>
-
-      <FundingDesc>
-        Funds the AI outreach agent — covers email sends, vendor discovery, and onchain transactions.
-      </FundingDesc>
-
-      {AGENT_WALLET && (
-        <FundingAddressRow>
-          <FundingAddress title={AGENT_WALLET}>
-            {AGENT_WALLET.slice(0, 10)}…{AGENT_WALLET.slice(-8)}
-          </FundingAddress>
-          <FundingCopyBtn onClick={copyAddress} title="Copy address">
-            {copied ? (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            )}
-            {copied ? 'Copied!' : 'Copy'}
-          </FundingCopyBtn>
-        </FundingAddressRow>
-      )}
-
-      <FundingActions>
-        <FundButton />
-        <FundingLink
-          href={`https://basescan.org/address/${AGENT_WALLET}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          Basescan
-        </FundingLink>
-      </FundingActions>
-    </FundingCard>
-  );
-}
-
 type IdentityState =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -439,14 +365,190 @@ function AgentIdentityCard() {
   );
 }
 
+// ── Vendor profile (onboarding data) ────────────────────────────────────────
+interface VendorMe {
+  fallback?: boolean;
+  onboarding: {
+    prospectCode: string;
+    status: string;
+    contactName: string | null;
+    businessName: string | null;
+    preferredEmail: string | null;
+    phone: string | null;
+  } | null;
+  vendor: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    rating: string | null;
+    reviewCount: number | null;
+    categories: string[];
+    menuItems: { name: string; description?: string; price?: string }[];
+    topReviews: { text: string; rating: number; authorName: string }[];
+    coverPhotoUrl: string | null;
+    websiteUrl: string | null;
+  } | null;
+}
+
+function VendorProfileCard({ address }: { address: string | undefined }) {
+  const [data, setData] = useState<VendorMe | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!address) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/vendor/me?wallet=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [address]);
+
+  if (!address) {
+    return (
+      <VendorProfileCardRoot>
+        <CardLabel>About your business</CardLabel>
+        <VendorProfilePlaceholder>
+          Connect your vendor wallet to load business details.
+        </VendorProfilePlaceholder>
+      </VendorProfileCardRoot>
+    );
+  }
+  if (loading) {
+    return (
+      <VendorProfileCardRoot>
+        <CardLabel>About your business</CardLabel>
+        <VendorProfilePlaceholder>Loading…</VendorProfilePlaceholder>
+      </VendorProfileCardRoot>
+    );
+  }
+  if (!data?.onboarding && !data?.vendor) {
+    return (
+      <VendorProfileCardRoot>
+        <CardLabel>About your business</CardLabel>
+        <VendorProfilePlaceholder>
+          No vendor profile found for this wallet yet.
+          <VendorProfileCta as="a" href="/onboard?demo=true">Get started</VendorProfileCta>
+        </VendorProfilePlaceholder>
+      </VendorProfileCardRoot>
+    );
+  }
+
+  const onboarding = data.onboarding;
+  const vendor = data.vendor;
+  const isFallback = !!data.fallback;
+  const businessName = onboarding?.businessName || vendor?.name || 'Your business';
+  const categories = vendor?.categories ?? [];
+  const topReviews = vendor?.topReviews ?? [];
+  const coverPhotoUrl = vendor?.coverPhotoUrl;
+
+  return (
+    <VendorProfileCardRoot>
+      <CardLabel>About your business</CardLabel>
+      {coverPhotoUrl && (
+        <VendorCoverPhoto src={coverPhotoUrl} alt={businessName} />
+      )}
+      <VendorProfileBody>
+        <VendorBizName>{businessName}</VendorBizName>
+        {isFallback && (
+          <VendorPreviewNote>
+            Preview profile only — complete full onboarding to lock this section to your wallet.
+          </VendorPreviewNote>
+        )}
+        {onboarding?.prospectCode && (
+          <VendorProspectCode>{onboarding.prospectCode}</VendorProspectCode>
+        )}
+        {(onboarding?.contactName || onboarding?.preferredEmail || onboarding?.phone || vendor?.address) && (
+          <VendorContactBlock>
+            {onboarding?.contactName && <VendorContactLine><strong>Contact:</strong> {onboarding.contactName}</VendorContactLine>}
+            {onboarding?.preferredEmail && <VendorContactLine><strong>Email:</strong> {onboarding.preferredEmail}</VendorContactLine>}
+            {(onboarding?.phone || vendor?.phone) && <VendorContactLine><strong>Phone:</strong> {onboarding?.phone || vendor?.phone}</VendorContactLine>}
+            {vendor?.address && <VendorContactLine><strong>Address:</strong> {vendor.address}</VendorContactLine>}
+          </VendorContactBlock>
+        )}
+        {vendor?.rating != null && (
+          <VendorRating>
+            {'★'.repeat(Math.round(parseFloat(vendor.rating)))}
+            <span>{vendor.rating}</span>
+            {vendor.reviewCount != null && <span>({vendor.reviewCount} reviews)</span>}
+          </VendorRating>
+        )}
+        {categories.length > 0 && (
+          <VendorTagRow>
+            {categories.map((c) => (
+              <VendorTag key={c}>{c}</VendorTag>
+            ))}
+          </VendorTagRow>
+        )}
+        {topReviews.length > 0 && (
+          <VendorSection>
+            <VendorSectionTitle>What customers say</VendorSectionTitle>
+            {topReviews.slice(0, 3).map((r, i) => (
+              <VendorReview key={i}>
+                <VendorReviewStars>{'★'.repeat(r.rating)}</VendorReviewStars>
+                <VendorReviewText>&ldquo;{r.text}&rdquo;</VendorReviewText>
+                <VendorReviewAuthor>— {r.authorName}</VendorReviewAuthor>
+              </VendorReview>
+            ))}
+          </VendorSection>
+        )}
+      </VendorProfileBody>
+    </VendorProfileCardRoot>
+  );
+}
+
+function VendorMenuCard({ address }: { address: string | undefined }) {
+  const [data, setData] = useState<VendorMe | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!address) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/vendor/me?wallet=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [address]);
+
+  const menuItems = data?.vendor?.menuItems ?? [];
+
+  return (
+    <MenuCardRoot>
+      <CardLabel>Menu</CardLabel>
+      {!address ? (
+        <VendorEmptyState>Connect your vendor wallet to load menu items.</VendorEmptyState>
+      ) : loading ? (
+        <VendorProfilePlaceholder>Loading…</VendorProfilePlaceholder>
+      ) : menuItems.length > 0 ? (
+        <VendorMenuList>
+          {menuItems.map((m) => (
+            <VendorMenuItem key={m.name}>
+              <span>{m.name}</span>
+              {m.price != null && <VendorMenuPrice>{m.price}</VendorMenuPrice>}
+            </VendorMenuItem>
+          ))}
+        </VendorMenuList>
+      ) : (
+        <VendorEmptyState>
+          Menu items are not available yet. They will appear after vendor enrichment/tokenized onboarding data sync.
+        </VendorEmptyState>
+      )}
+    </MenuCardRoot>
+  );
+}
+
 export default function VendorDashboard() {
   const { address, isConnected } = useAccount();
   const { user } = useUser();
   const linkedAccountAddress = user?.accountAddress ?? null;
-  const isLinkedAccountMatch =
-    !!address &&
-    !!linkedAccountAddress &&
-    address.toLowerCase() === linkedAccountAddress.toLowerCase();
 
   const isConnectedAgentWallet =
     !!address &&
@@ -455,6 +557,10 @@ export default function VendorDashboard() {
   const linkedIsVendorWallet =
     !!linkedAccountAddress &&
     (!AGENT_WALLET || linkedAccountAddress.toLowerCase() !== AGENT_WALLET.toLowerCase());
+  const vendorLookupAddress =
+    (isConnectedAgentWallet && linkedIsVendorWallet
+      ? linkedAccountAddress
+      : address) ?? undefined;
 
   const { data: ethBalance } = useBalance({ address, chainId: base.id });
   const { data: usdcBalance } = useBalance({
@@ -512,114 +618,83 @@ export default function VendorDashboard() {
                   You're connected with the agent wallet. Connect your vendor wallet to view and manage your vendor funds.
                 </AgentWalletWarning>
               )}
-              <BalanceCard>
-                <CardLabel>USDC Balance</CardLabel>
-                {isConnectedAgentWallet && (
-                  <BalanceCardNote>Showing agent wallet — connect your vendor wallet for your funds</BalanceCardNote>
-                )}
-                <BalanceRow>
-                  <BalanceAmount>
-                    ${usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
-                  </BalanceAmount>
-                  <CurrencyTag>USDC</CurrencyTag>
-                </BalanceRow>
-                <SubBalance>
-                  {ethBalance ? parseFloat(ethBalance.formatted).toFixed(6) : '0'} ETH (gas)
-                </SubBalance>
-                <CardActions>
-                  <FundButton />
-                </CardActions>
-              </BalanceCard>
+              <Columns>
+                <LeftColumn>
+                  <VendorProfileCard address={vendorLookupAddress} />
+                  <VendorMenuCard address={vendorLookupAddress} />
+                </LeftColumn>
 
-              <AdiBalanceCard />
+                <RightColumn>
+                  <QuickActions>
+                    <CardLabel>Quick Actions</CardLabel>
+                    <ActionList>
+                      <ActionButton as="a" href="/onboard?demo=true">
+                        <ActionIcon>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                          </svg>
+                        </ActionIcon>
+                        Get Started — Onboarding
+                      </ActionButton>
+                      <ActionButton
+                        as="a"
+                        href={address ? `https://basescan.org/address/${address}` : '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ActionIcon>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                          </svg>
+                        </ActionIcon>
+                        View on BaseScan
+                      </ActionButton>
+                      <ActionButton disabled>
+                        <ActionIcon>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                          </svg>
+                        </ActionIcon>
+                        Cash Out (Coming Soon)
+                      </ActionButton>
+                      <ActionButton disabled>
+                        <ActionIcon>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                            <line x1="1" y1="10" x2="23" y2="10" />
+                          </svg>
+                        </ActionIcon>
+                        Transaction History (Coming Soon)
+                      </ActionButton>
+                    </ActionList>
+                  </QuickActions>
 
-              <AgentFundingCard />
-              <AgentIdentityCard />
+                  <BalanceCard>
+                    <CardLabel>USDC Balance</CardLabel>
+                    {isConnectedAgentWallet && (
+                      <BalanceCardNote>Showing agent wallet — connect your vendor wallet for your funds</BalanceCardNote>
+                    )}
+                    <BalanceRow>
+                      <BalanceAmount>
+                        ${usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
+                      </BalanceAmount>
+                      <CurrencyTag>USDC</CurrencyTag>
+                    </BalanceRow>
+                    <SubBalance>
+                      {ethBalance ? parseFloat(ethBalance.formatted).toFixed(6) : '0'} ETH (gas)
+                    </SubBalance>
+                    <CardActions>
+                      <FundButton />
+                    </CardActions>
+                  </BalanceCard>
 
-              <NetworkCard>
-                <CardLabel>Network</CardLabel>
-                <NetworkInfo>
-                  <NetworkDot />
-                  Base
-                </NetworkInfo>
-                <NetworkDetail>
-                  {address && (
-                    <>
-                      <AccountLabel>
-                        {isConnectedAgentWallet
-                          ? linkedIsVendorWallet
-                            ? 'Your vendor wallet'
-                            : 'Agent wallet (connect your vendor wallet)'
-                          : linkedAccountAddress && isLinkedAccountMatch
-                            ? 'Your account (Smart wallet)'
-                            : 'Smart wallet'}
-                      </AccountLabel>
-                      <AddressDisplay>
-                        {isConnectedAgentWallet && linkedIsVendorWallet
-                          ? linkedAccountAddress
-                          : address}
-                      </AddressDisplay>
-                      {isConnectedAgentWallet && linkedIsVendorWallet && (
-                        <LinkedAccountLine>
-                          Connect this wallet to see your balance
-                        </LinkedAccountLine>
-                      )}
-                      {!isConnectedAgentWallet && linkedAccountAddress && !isLinkedAccountMatch && (
-                        <LinkedAccountLine>
-                          Linked account: {shortenAddress(linkedAccountAddress)}
-                        </LinkedAccountLine>
-                      )}
-                    </>
-                  )}
-                </NetworkDetail>
-              </NetworkCard>
-
-              <QuickActions>
-                <CardLabel>Quick Actions</CardLabel>
-                <ActionList>
-                  <ActionButton as="a" href="/onboard?demo=true">
-                    <ActionIcon>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                      </svg>
-                    </ActionIcon>
-                    Get Started — Onboarding
-                  </ActionButton>
-                  <ActionButton
-                    as="a"
-                    href={address ? `https://basescan.org/address/${address}` : '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ActionIcon>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                    </ActionIcon>
-                    View on BaseScan
-                  </ActionButton>
-                  <ActionButton disabled>
-                    <ActionIcon>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="1" x2="12" y2="23" />
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                      </svg>
-                    </ActionIcon>
-                    Cash Out (Coming Soon)
-                  </ActionButton>
-                  <ActionButton disabled>
-                    <ActionIcon>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                        <line x1="1" y1="10" x2="23" y2="10" />
-                      </svg>
-                    </ActionIcon>
-                    Transaction History (Coming Soon)
-                  </ActionButton>
-                </ActionList>
-              </QuickActions>
+                  <AdiBalanceCard />
+                  <AgentIdentityCard />
+                </RightColumn>
+              </Columns>
             </DashboardGrid>
           )}
         </Main>
@@ -979,6 +1054,39 @@ const DashboardGrid = styled.div`
   gap: 1rem;
 `;
 
+const Columns = styled.div`
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const LeftColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: stretch;
+`;
+
+const RightColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: stretch;
+`;
+
+const MenuCardRoot = styled.div`
+  width: 100%;
+  background: ${({ theme }) => theme.surface};
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+`;
+
 const AgentWalletWarning = styled.div`
   padding: 0.75rem 1rem;
   background: ${({ theme }) => theme.warning ? `${theme.warning}20` : 'rgba(245, 158, 11, 0.15)'};
@@ -1046,16 +1154,6 @@ const CardActions = styled.div`
   gap: 0.75rem;
 `;
 
-const NetworkCard = styled(Card)``;
-
-const NetworkInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-`;
-
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
@@ -1068,35 +1166,6 @@ const NetworkDot = styled.div`
   background: ${({ theme }) => theme.success};
   animation: ${pulse} 2s ease infinite;
   flex-shrink: 0;
-`;
-
-const NetworkDetail = styled.div`
-  margin-top: 0.5rem;
-`;
-
-const AccountLabel = styled.div`
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: ${({ theme }) => theme.textMuted};
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-`;
-
-const AddressDisplay = styled.code`
-  font-size: 0.75rem;
-  color: ${({ theme }) => theme.textSecondary};
-  background: ${({ theme }) => theme.backgroundAlt};
-  padding: 4px 8px;
-  border-radius: 4px;
-  word-break: break-all;
-  display: block;
-`;
-
-const LinkedAccountLine = styled.div`
-  font-size: 0.7rem;
-  color: ${({ theme }) => theme.textMuted};
-  margin-top: 6px;
 `;
 
 const QuickActions = styled(Card)``;
@@ -1235,101 +1304,6 @@ const AdiError = styled.div`
   padding: 10px 12px;
 `;
 
-/* ─── agent funding card ─────────────────────────────────────────── */
-const FundingCard = styled(Card)``;
-
-const FundingHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-`;
-
-const FundingBadge = styled.span`
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: ${({ theme }) => theme.textMuted};
-  background: ${({ theme }) => theme.backgroundAlt};
-  border: 1px solid ${({ theme }) => theme.borderSubtle};
-  padding: 2px 8px;
-  border-radius: 20px;
-`;
-
-const FundingBalanceRow = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-`;
-
-const FundingAmount = styled.div`
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-`;
-
-const FundingCurrency = styled.span`
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: ${({ theme }) => theme.accent};
-`;
-
-const FundingDesc = styled.p`
-  font-size: 0.8rem;
-  color: ${({ theme }) => theme.textMuted};
-  margin: 0.75rem 0 1rem;
-  line-height: 1.5;
-`;
-
-const FundingAddressRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 1rem;
-`;
-
-const FundingAddress = styled.code`
-  font-size: 0.75rem;
-  color: ${({ theme }) => theme.textMuted};
-  word-break: break-all;
-`;
-
-const FundingCopyBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid ${({ theme }) => theme.borderSubtle};
-  background: transparent;
-  color: ${({ theme }) => theme.textMuted};
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  &:hover {
-    color: ${({ theme }) => theme.text};
-    border-color: ${({ theme }) => theme.border};
-  }
-`;
-
-const FundingActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-`;
-
-const FundingLink = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.accent};
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-`;
-
 /* ─── agent identity card ────────────────────────────────────────── */
 const IdentityCard = styled(Card)``;
 
@@ -1406,6 +1380,161 @@ const IdentityError = styled.div`
   font-size: 0.8rem;
   color: #ef4444;
   margin-top: 0.75rem;
+`;
+
+/* ─── vendor profile card ─────────────────────────────────────────── */
+const VendorProfileCardRoot = styled(Card)`
+  overflow: hidden;
+`;
+
+const VendorProfilePlaceholder = styled.div`
+  font-size: 0.88rem;
+  color: ${({ theme }) => theme.textMuted};
+  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const VendorProfileCta = styled.a`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+`;
+
+const VendorCoverPhoto = styled.img`
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+  background: ${({ theme }) => theme.backgroundAlt};
+`;
+
+const VendorProfileBody = styled.div`
+  padding: 1rem 1.25rem;
+`;
+
+const VendorBizName = styled.h2`
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: ${({ theme }) => theme.text};
+`;
+
+const VendorProspectCode = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 0.75rem;
+`;
+
+const VendorPreviewNote = styled.div`
+  font-size: 0.78rem;
+  color: ${({ theme }) => theme.textMuted};
+  background: ${({ theme }) => theme.backgroundAlt};
+  border: 1px solid ${({ theme }) => theme.borderSubtle};
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  margin: 0 0 0.75rem;
+`;
+
+const VendorContactBlock = styled.div`
+  font-size: 0.82rem;
+  color: ${({ theme }) => theme.text};
+  margin-bottom: 0.75rem;
+`;
+
+const VendorContactLine = styled.div`
+  margin-bottom: 2px;
+`;
+
+const VendorRating = styled.div`
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  color: ${({ theme }) => theme.textMuted};
+  & span { margin-right: 4px; }
+`;
+
+const VendorTagRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+`;
+
+const VendorTag = styled.span`
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: ${({ theme }) => theme.backgroundAlt};
+  border: 1px solid ${({ theme }) => theme.borderSubtle};
+  color: ${({ theme }) => theme.textMuted};
+`;
+
+const VendorSection = styled.section`
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid ${({ theme }) => theme.borderSubtle};
+`;
+
+const VendorSectionTitle = styled.h3`
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: ${({ theme }) => theme.textMuted};
+  margin: 0 0 0.5rem;
+`;
+
+const VendorEmptyState = styled.div`
+  font-size: 0.82rem;
+  color: ${({ theme }) => theme.textMuted};
+`;
+
+const VendorMenuList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+`;
+
+const VendorMenuItem = styled.li`
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.88rem;
+  padding: 4px 0;
+  border-bottom: 1px solid ${({ theme }) => theme.borderSubtle};
+  &:last-child { border-bottom: none; }
+`;
+
+const VendorMenuPrice = styled.span`
+  font-weight: 600;
+  color: ${({ theme }) => theme.text};
+`;
+
+const VendorReview = styled.div`
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+`;
+
+const VendorReviewStars = styled.div`
+  color: #eab308;
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+`;
+
+const VendorReviewText = styled.div`
+  color: ${({ theme }) => theme.text};
+  font-style: italic;
+`;
+
+const VendorReviewAuthor = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-top: 2px;
 `;
 
 

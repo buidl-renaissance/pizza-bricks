@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import styled, { keyframes } from 'styled-components';
 import { ConnectWallet, Wallet } from '@coinbase/onchainkit/wallet';
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { encodeFunctionData, parseAbi } from 'viem';
 import { base } from 'wagmi/chains';
 
@@ -90,17 +90,63 @@ function StepBar({ current }: { current: number }) {
 }
 
 // ── Step 1: Contact info ──────────────────────────────────────────────────────
-function ContactStep({ data, onNext }: { data: OnboardingData & typeof DEMO_DATA; onNext: () => void }) {
+function ContactStep({
+  data,
+  onNext,
+  token,
+}: {
+  data: OnboardingData & typeof DEMO_DATA;
+  onNext: () => void;
+  token?: string;
+}) {
   const [name, setName] = useState(data.contactName || '');
   const [title, setTitle] = useState('Owner');
   const [email, setEmail] = useState(data.preferredEmail || '');
   const [phone, setPhone] = useState(data.phone || '');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveError('');
+
+    // Demo onboarding has no DB record to persist.
+    if (!token || token === 'demo') {
+      onNext();
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/onboard/save-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          contactName: name,
+          businessName: data.businessName,
+          preferredEmail: email,
+          phone,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.success) {
+        setSaveError(payload.error ?? 'Failed to save contact details.');
+        return;
+      }
+      onNext();
+    } catch {
+      setSaveError('Network error while saving details.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <StepCard>
       <StepHeading>Confirm your details</StepHeading>
       <StepSub>We&apos;ve pre-filled this from your business profile. Make any corrections below.</StepSub>
-      <Form onSubmit={e => { e.preventDefault(); onNext(); }}>
+      <Form onSubmit={handleSubmit}>
         <FormRow>
           <FormGroup>
             <Label>Your name</Label>
@@ -134,7 +180,10 @@ function ContactStep({ data, onNext }: { data: OnboardingData & typeof DEMO_DATA
           <Label>Business address</Label>
           <Input value={data.address} readOnly style={{ opacity: 0.6 }} />
         </FormGroup>
-        <PrimaryBtn type="submit">Continue &rarr;</PrimaryBtn>
+        {saveError && <ErrorText>{saveError}</ErrorText>}
+        <PrimaryBtn type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Continue →'}
+        </PrimaryBtn>
       </Form>
     </StepCard>
   );
@@ -339,7 +388,8 @@ function ServicesStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
 
 // ── Step 3: Wallet ────────────────────────────────────────────────────────────
 function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () => void; token?: string }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const [feePaid, setFeePaid] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [feeError, setFeeError] = useState('');
@@ -347,7 +397,7 @@ function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () 
   const usdcTransferData = encodeFunctionData({
     abi: parseAbi(['function transfer(address to, uint256 amount) returns (bool)']),
     functionName: 'transfer',
-    args: [AGENT_WALLET, BigInt(1_000_000)],
+    args: [AGENT_WALLET, BigInt(10_000)], // 0.01 USDC (1 cent), 6 decimals
   });
   const attributedData = (usdcTransferData + buildAttributionSuffix(BUILDER_CODE)) as `0x${string}`;
 
@@ -372,12 +422,40 @@ function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () 
       .finally(() => setConfirming(false));
   }, [txConfirmed, txHash, token, confirming, feePaid]);
 
-  const handlePayFee = () => {
+  const [savingWallet, setSavingWallet] = useState(false);
+
+  const handlePayFee = async () => {
     setFeeError('');
+    if (chainId !== base.id) {
+      try {
+        await switchChainAsync({ chainId: base.id });
+      } catch (e) {
+        setFeeError('Please switch your wallet to Base mainnet to pay the fee.');
+        return;
+      }
+    }
     sendTransaction({ to: USDC_BASE, data: attributedData, chainId: base.id });
   };
 
-  const isBusy = txPending || txWaiting || confirming;
+  const handleNext = useCallback(async () => {
+    if (address && token && token !== 'demo') {
+      setSavingWallet(true);
+      try {
+        await fetch('/api/onboard/save-wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, walletAddress: address }),
+        });
+      } catch {
+        // non-blocking; still proceed to done step
+      } finally {
+        setSavingWallet(false);
+      }
+    }
+    onNext();
+  }, [address, token, onNext]);
+
+  const isBusy = txPending || txWaiting || confirming || savingWallet;
 
   return (
     <StepCard>
@@ -422,10 +500,10 @@ function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () 
               <FeeSub>
                 {feePaid
                   ? `Your account is live on Base mainnet.`
-                  : 'One-time 1 USDC fee — recorded onchain with your Pizza Bricks builder code.'}
+                  : 'One-time $0.01 (1¢) USDC fee — recorded onchain with your Pizza Bricks builder code.'}
               </FeeSub>
             </div>
-            <FeeAmount $paid={feePaid}>1 USDC</FeeAmount>
+            <FeeAmount $paid={feePaid}>$0.01 USDC</FeeAmount>
           </FeeBoxRow>
 
           {!feePaid && (
@@ -434,7 +512,7 @@ function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () 
                 <FeeError>{feeError || txError?.message?.split('\n')[0]}</FeeError>
               )}
               <FeeBtn type="button" onClick={handlePayFee} disabled={isBusy}>
-                {txPending ? 'Confirm in wallet…' : txWaiting ? 'Waiting for block…' : confirming ? 'Verifying…' : 'Pay 1 USDC to activate →'}
+                {txPending ? 'Confirm in wallet…' : txWaiting ? 'Waiting for block…' : confirming ? 'Verifying…' : 'Pay $0.01 to activate →'}
               </FeeBtn>
             </>
           )}
@@ -459,8 +537,16 @@ function WalletStep({ onNext, onBack, token }: { onNext: () => void; onBack: () 
           </svg>
           Back
         </BackBtn>
-        {isConnected && feePaid && <PrimaryBtn onClick={onNext}>Finish &rarr;</PrimaryBtn>}
-        {(!isConnected || !feePaid) && <SkipBtn onClick={onNext}>Skip for now</SkipBtn>}
+        {isConnected && feePaid && (
+          <PrimaryBtn onClick={handleNext} disabled={savingWallet}>
+            {savingWallet ? 'Saving…' : 'Finish &rarr;'}
+          </PrimaryBtn>
+        )}
+        {(!isConnected || !feePaid) && (
+          <SkipBtn onClick={handleNext} disabled={savingWallet}>
+            {savingWallet ? 'Saving…' : 'Skip for now'}
+          </SkipBtn>
+        )}
       </StepNav>
     </StepCard>
   );
@@ -624,7 +710,13 @@ export default function OnboardPage() {
               </FormHeader>
               <StepBar current={step} />
               <FormContent>
-                {step === 0 && <ContactStep data={data as OnboardingData & typeof DEMO_DATA} onNext={next} />}
+                {step === 0 && (
+                  <ContactStep
+                    data={data as OnboardingData & typeof DEMO_DATA}
+                    onNext={next}
+                    token={typeof token === 'string' ? token : undefined}
+                  />
+                )}
                 {step === 1 && <ServicesStep onNext={next} onBack={prev} />}
                 {step === 2 && <WalletStep onNext={next} onBack={prev} token={typeof token === 'string' ? token : undefined} />}
                 {step === 3 && <DoneStep data={data} />}

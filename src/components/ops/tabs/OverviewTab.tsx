@@ -157,6 +157,7 @@ interface FinanceSummary {
   totalAiCostUsd: string;
   totalInputTokens: number;
   totalOutputTokens: number;
+  revenueVendorFees?: number;
 }
 
 export function OverviewTab() {
@@ -234,6 +235,8 @@ export function OverviewTab() {
               <AgentJsonLink href="/agent.json" target="_blank" rel="noopener noreferrer">
                 agent.json ↗
               </AgentJsonLink>
+              {' · '}
+              {finance?.revenueVendorFees ?? 0} onboarding{finance?.revenueVendorFees === 1 ? '' : 's'} @ $0.01
             </FinanceSub>
           </FinanceCard>
           <FinanceCard>
