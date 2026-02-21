@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { motion, useInView } from "framer-motion";
 import { LandingSection } from "./LandingSection";
 import { WaitlistForm } from "./WaitlistForm";
+import { APPLY_AS_BUSINESS } from "@/content/landingCopy";
 
 const Title = styled(motion.h2)`
   font-family: "Fredoka", "Space Grotesk", sans-serif;
@@ -24,7 +25,7 @@ export const PizzeriaFormSection: React.FC = () => {
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.4 }}
       >
-        Apply to Be a Founding Shop
+        {APPLY_AS_BUSINESS.cta}
       </Title>
       <WaitlistForm
         type="pizzeria"

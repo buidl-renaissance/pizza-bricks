@@ -33,7 +33,7 @@ const CtaButton = styled.a<{ $primary?: boolean }>`
     $primary
       ? `
     background: ${theme.accent};
-    color: ${theme.signalWhite};
+    color: ${theme.onAccent ?? theme.signalWhite};
     &:hover { background: ${theme.accentHover}; }
   `
       : `
@@ -72,13 +72,13 @@ export const FinalCTASection: React.FC = () => {
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <CtaButton href="#early-access" $primary onClick={(e) => scrollToId(e, "early-access")}>
+        <CtaButton href="#pizzeria-form" $primary onClick={(e) => scrollToId(e, "pizzeria-form")}>
           {FINAL_CTA.buttons[0].label}
         </CtaButton>
-        <CtaButton href="#city" onClick={(e) => scrollToId(e, "city")}>
+        <CtaButton href="#join-pod" onClick={(e) => scrollToId(e, "join-pod")}>
           {FINAL_CTA.buttons[1].label}
         </CtaButton>
-        <CtaButton href="#pizzeria-partners" onClick={(e) => scrollToId(e, "pizzeria-partners")}>
+        <CtaButton href="#growth-partner" onClick={(e) => scrollToId(e, "growth-partner")}>
           {FINAL_CTA.buttons[2].label}
         </CtaButton>
       </ButtonRow>

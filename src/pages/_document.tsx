@@ -10,7 +10,7 @@ import { ServerStyleSheet } from "styled-components";
 
 export default class MyDocument extends Document {
   static async getInitialProps(
-    ctx: DocumentContext
+    ctx: DocumentContext,
   ): Promise<DocumentInitialProps> {
     const sheet = new ServerStyleSheet();
     const originalRenderPage = ctx.renderPage;
@@ -45,6 +45,7 @@ export default class MyDocument extends Document {
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@400;500;600;700&family=Permanent+Marker&family=Caveat:wght@400;500;600;700&display=swap"
             rel="stylesheet"
           />
+          <meta name="base:app_id" content="69979231a243966eadb385f8" />
         </Head>
         <body>
           <Main />
