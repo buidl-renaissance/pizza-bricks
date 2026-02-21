@@ -88,6 +88,19 @@ export const generatedSites = sqliteTable('generated_sites', {
   estimatedCostUsd: text('estimatedCostUsd'),
 });
 
+export type SiteUpdateJobStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export const siteUpdateJobs = sqliteTable('site_update_jobs', {
+  id: text('id').primaryKey(),
+  siteId: text('siteId').notNull(),
+  status: text('status').$type<SiteUpdateJobStatus>().notNull().default('pending'),
+  prompt: text('prompt').notNull(),
+  resultUrl: text('resultUrl'),
+  errorMessage: text('errorMessage'),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  completedAt: integer('completedAt', { mode: 'timestamp' }),
+});
+
 export const agentState = sqliteTable('agent_state', {
   id: text('id').primaryKey(),   // always 'singleton'
   status: text('status').$type<AgentStatus>().notNull().default('paused'),

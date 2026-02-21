@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { eq, desc, sql } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { vendorOnboardings, vendors } from '@/db/schema';
+import { getProspectByVendorId, listGeneratedSites } from '@/db/ops';
+import { listCampaigns } from '@/db/campaigns';
 
 /**
  * GET /api/vendor/me?wallet=0x...
@@ -40,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .then((r) => r[0] ?? null);
 
     if (!fallbackVendor) {
-      return res.status(200).json({ vendor: null, onboarding: null, fallback: false });
+      return res.status(200).json({ vendor: null, onboarding: null, fallback: false, sites: [], campaigns: [] });
     }
 
     type MenuItem = { name: string; description?: string; price?: string };
@@ -76,6 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         coverPhotoUrl: fallbackVendor.coverPhotoUrl,
         websiteUrl: fallbackVendor.websiteUrl,
       },
+      sites: [],
+      campaigns: [],
     });
   }
 
@@ -97,6 +101,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         phone: onboarding.phone,
       },
       vendor: null,
+      sites: [],
+      campaigns: [],
     });
   }
 
@@ -116,6 +122,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     if (vendor.topReviews) topReviews = JSON.parse(vendor.topReviews);
   } catch {}
+
+  const prospect = await getProspectByVendorId(vendor.id);
+  const sites = prospect
+    ? (await listGeneratedSites({ prospectId: prospect.id, limit: 20 })).map((s) => ({
+        id: s.id,
+        url: s.url ?? undefined,
+        status: s.status,
+      }))
+    : [];
+  const campaigns = await listCampaigns({ vendorId: vendor.id, limit: 50 }).then((rows) =>
+    rows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description ?? undefined,
+      status: c.status,
+      suggestedDate: c.suggestedDate ?? undefined,
+      type: c.type,
+    }))
+  );
 
   return res.status(200).json({
     fallback: false,
@@ -140,5 +165,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       coverPhotoUrl: vendor.coverPhotoUrl,
       websiteUrl: vendor.websiteUrl,
     },
+    sites,
+    campaigns,
   });
 }

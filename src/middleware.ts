@@ -28,6 +28,20 @@ export const middleware = paymentMiddleware(
         description: 'Pizza Bricks — campaign activation (deployment)',
       },
     },
+    '/api/vendor/site/update': {
+      price: '$0.50',
+      network: 'base',
+      config: {
+        description: 'Pizza Bricks — vendor prompt-based website update',
+      },
+    },
+    '/api/vendor/campaigns/[id]/activate': {
+      price: '$1.00',
+      network: 'base',
+      config: {
+        description: 'Pizza Bricks — vendor campaign activation',
+      },
+    },
   },
   facilitator as FacilitatorParam,
 );
@@ -37,6 +51,8 @@ export const config = {
     '/api/merchant/order',
     '/api/ops/sites/:path*',
     '/api/campaigns/:path*',
+    '/api/vendor/site/update',
+    '/api/vendor/campaigns/:path*',
   ],
   runtime: 'nodejs',
 };

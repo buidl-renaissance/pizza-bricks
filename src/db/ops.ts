@@ -6,6 +6,7 @@ import {
   activityEvents,
   emailLogs,
   generatedSites,
+  siteUpdateJobs,
   agentState,
   agentTicks,
   vendorOnboardings,
@@ -24,6 +25,7 @@ import type {
   AgentStatus,
   AgenticCostOperation,
   AgenticCostEntityType,
+  SiteUpdateJobStatus,
 } from './schema';
 import type { Vendor } from './schema';
 
@@ -176,6 +178,19 @@ export async function getOrCreateProspectFromVendor(vendor: Vendor): Promise<Pro
     pipelineStage: 'discovered',
     metadata: { vendorId: vendor.id },
   });
+}
+
+/** Update prospect metadata (merge with existing). Use to reattach vendorId after detach. */
+export async function updateProspectMetadata(
+  prospectId: string,
+  metadataPatch: Record<string, unknown>,
+): Promise<void> {
+  const db = getDb();
+  const row = await db.select({ metadata: prospects.metadata }).from(prospects).where(eq(prospects.id, prospectId)).limit(1).then((r) => r[0]);
+  if (!row) return;
+  const existing = (row.metadata ? (JSON.parse(row.metadata) as Record<string, unknown>) : {}) ?? {};
+  const merged = { ...existing, ...metadataPatch };
+  await db.update(prospects).set({ metadata: JSON.stringify(merged) }).where(eq(prospects.id, prospectId));
 }
 
 /** Most recent published or pending_review site for a prospect. */
@@ -495,6 +510,43 @@ export async function getGeneratedSite(id: string): Promise<GeneratedSite | unde
   const db = getDb();
   const rows = await db.select().from(generatedSites).where(eq(generatedSites.id, id)).limit(1);
   return rows[0];
+}
+
+// ── Site update jobs (background website updates) ──────────────────────────────
+export type SiteUpdateJob = typeof siteUpdateJobs.$inferSelect;
+
+export async function insertSiteUpdateJob(data: {
+  siteId: string;
+  prompt: string;
+}): Promise<SiteUpdateJob> {
+  const db = getDb();
+  const id = uuidv4();
+  const row = {
+    id,
+    siteId: data.siteId,
+    status: 'pending' as SiteUpdateJobStatus,
+    prompt: data.prompt,
+    resultUrl: null,
+    errorMessage: null,
+    createdAt: new Date(),
+    completedAt: null,
+  };
+  await db.insert(siteUpdateJobs).values(row);
+  return row as SiteUpdateJob;
+}
+
+export async function getSiteUpdateJob(id: string): Promise<SiteUpdateJob | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(siteUpdateJobs).where(eq(siteUpdateJobs.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updateSiteUpdateJob(
+  id: string,
+  data: Partial<{ status: SiteUpdateJobStatus; resultUrl: string; errorMessage: string; completedAt: Date }>
+): Promise<void> {
+  const db = getDb();
+  await db.update(siteUpdateJobs).set(data).where(eq(siteUpdateJobs.id, id));
 }
 
 /** Sites that have a deploymentId and non-terminal status (generating or pending_review). */

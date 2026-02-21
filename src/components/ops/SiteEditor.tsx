@@ -35,12 +35,36 @@ const PreviewPanel = styled.div`
 `;
 
 const PreviewHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
   background: ${({ theme }) => theme.surface};
   border-bottom: 1px solid ${({ theme }) => theme.border};
   font-size: 0.85rem;
   font-weight: 600;
   color: ${({ theme }) => theme.text};
+`;
+
+const OpenWebsiteButton = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.accent};
+  background: ${({ theme }) => theme.accentMuted ?? 'rgba(99, 102, 241, 0.12)'};
+  border: 1px solid ${({ theme }) => theme.accent};
+  border-radius: 6px;
+  text-decoration: none;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+  }
 `;
 
 const PreviewFrame = styled.iframe`
@@ -157,17 +181,6 @@ const EmptyState = styled.p`
   margin: 0;
 `;
 
-const OpenInNewLink = styled.a`
-  font-size: 0.75rem;
-  color: ${({ theme }) => theme.accent};
-  margin-left: 0.5rem;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 export function SiteEditor({ siteId, siteUrl, prospectName }: SiteEditorProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -243,11 +256,11 @@ export function SiteEditor({ siteId, siteUrl, prospectName }: SiteEditorProps) {
     <Layout>
       <PreviewPanel>
         <PreviewHeader>
-          Preview
+          <span>Preview</span>
           {previewUrl && (
-            <OpenInNewLink href={previewUrl} target="_blank" rel="noopener noreferrer">
-              Open in new tab ↗
-            </OpenInNewLink>
+            <OpenWebsiteButton href={previewUrl} target="_blank" rel="noopener noreferrer">
+              Open website ↗
+            </OpenWebsiteButton>
           )}
         </PreviewHeader>
         {previewUrl ? (

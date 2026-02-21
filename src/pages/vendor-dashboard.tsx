@@ -6,6 +6,7 @@ import { FundButton } from '@coinbase/onchainkit/fund';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { useUser } from '@/contexts/UserContext';
+import { useFetchWithPayment } from '@/hooks/useFetchWithPayment';
 
 const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
 const AGENT_WALLET = (process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS ?? '') as `0x${string}`;
@@ -251,121 +252,20 @@ function AdiBalanceCard() {
   );
 }
 
-type IdentityState =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'registered'; agentId: string; basescanUrl: string; agentURI: string }
-  | { status: 'error'; message: string };
-
-function AgentIdentityCard() {
-  const [state, setState] = useState<IdentityState>({ status: 'idle' });
-
-  const register = useCallback(async () => {
-    setState({ status: 'loading' });
-    try {
-      const res = await fetch('/api/agent/register-identity', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        setState({ status: 'error', message: data.error ?? 'Registration failed' });
-        return;
-      }
-      if (data.alreadyRegistered) {
-        setState({
-          status: 'registered',
-          agentId: data.agentId,
-          basescanUrl: data.basescanUrl,
-          agentURI: data.agentURI,
-        });
-        return;
-      }
-      setState({
-        status: 'registered',
-        agentId: data.agentId,
-        basescanUrl: data.basescanUrl,
-        agentURI: data.agentURI,
-      });
-    } catch (err) {
-      setState({ status: 'error', message: err instanceof Error ? err.message : 'Network error' });
-    }
-  }, []);
-
-  const isRegistered = state.status === 'registered';
-  const isLoading = state.status === 'loading';
-
-  return (
-    <IdentityCard>
-      <IdentityHeader>
-        <CardLabel style={{ margin: 0 }}>ERC-8004 Agent Identity</CardLabel>
-        <IdentityBadge $registered={isRegistered}>
-          {isRegistered ? 'Registered' : 'Base'}
-        </IdentityBadge>
-      </IdentityHeader>
-
-      <IdentityDesc>
-        Register this agent in the ERC-8004 Trustless Agents Identity Registry on Base.
-        Once registered, the agent receives a unique on-chain ID tied to{' '}
-        <code style={{ fontSize: '0.78rem' }}>/agent.json</code> — making its identity verifiable
-        by other agents and protocols.
-      </IdentityDesc>
-
-      {isRegistered && (
-        <IdentityAgentId>
-          Agent ID: #{state.agentId}
-          {'  ·  '}
-          <span style={{ color: '#6366f1', wordBreak: 'break-all' }}>{state.agentURI}</span>
-        </IdentityAgentId>
-      )}
-
-      <IdentityActions>
-        {!isRegistered && (
-          <RegisterBtn $loading={isLoading} onClick={register} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" strokeDasharray="28" strokeDashoffset="10" />
-                </svg>
-                Registering…
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 3" />
-                </svg>
-                Register Agent
-              </>
-            )}
-          </RegisterBtn>
-        )}
-        <IdentityLink
-          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/agent.json`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-          agent.json
-        </IdentityLink>
-        {isRegistered && (
-          <IdentityLink href={state.basescanUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            Basescan
-          </IdentityLink>
-        )}
-      </IdentityActions>
-
-      {state.status === 'error' && (
-        <IdentityError>{state.message}</IdentityError>
-      )}
-    </IdentityCard>
-  );
-}
-
 // ── Vendor profile (onboarding data) ────────────────────────────────────────
+interface VendorSite {
+  id: string;
+  url?: string;
+  status: string;
+}
+interface VendorCampaign {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+  suggestedDate?: string;
+  type: string;
+}
 interface VendorMe {
   fallback?: boolean;
   onboarding: {
@@ -389,6 +289,8 @@ interface VendorMe {
     coverPhotoUrl: string | null;
     websiteUrl: string | null;
   } | null;
+  sites?: VendorSite[];
+  campaigns?: VendorCampaign[];
 }
 
 function VendorProfileCard({ address }: { address: string | undefined }) {
@@ -545,6 +447,294 @@ function VendorMenuCard({ address }: { address: string | undefined }) {
   );
 }
 
+// ── Website update (x402 $0.50) ─────────────────────────────────────────────
+const UPDATE_STATUS_POLL_MS = 2500;
+
+function VendorWebsiteUpdateCard({ address }: { address: string | undefined }) {
+  const fetchWithPayment = useFetchWithPayment();
+  const [data, setData] = useState<VendorMe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [prompt, setPrompt] = useState('');
+  const [siteId, setSiteId] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'payment'; text: string } | null>(null);
+  const [trackingJobId, setTrackingJobId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!address) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/vendor/me?wallet=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [address]);
+
+  const sites = data?.sites ?? [];
+  const updateableSites = sites.filter((s) => s.status === 'published' || s.url);
+  const hasMultipleSites = updateableSites.length > 1;
+
+  useEffect(() => {
+    if (hasMultipleSites && updateableSites[0]) {
+      setSiteId((prev) => (prev && updateableSites.some((s) => s.id === prev) ? prev : updateableSites[0].id));
+    }
+  }, [hasMultipleSites, updateableSites.length, updateableSites[0]?.id]);
+
+  // Poll update job status when we have a jobId and wallet
+  useEffect(() => {
+    if (!trackingJobId || !address) return;
+    const url = `/api/vendor/site/update/status?jobId=${encodeURIComponent(trackingJobId)}&wallet=${encodeURIComponent(address)}`;
+    const tick = () => {
+      fetch(url)
+        .then((r) => r.json())
+        .then((json: { status?: string; resultUrl?: string | null; errorMessage?: string | null }) => {
+          if (json.status === 'completed') {
+            setTrackingJobId(null);
+            setMessage({
+              type: 'success',
+              text: json.resultUrl ? `Site updated. ${json.resultUrl}` : 'Site updated successfully.',
+            });
+            setPrompt('');
+          } else if (json.status === 'failed') {
+            setTrackingJobId(null);
+            setMessage({ type: 'error', text: json.errorMessage ?? 'Update failed.' });
+          }
+        })
+        .catch(() => {});
+    };
+    tick();
+    const id = setInterval(tick, UPDATE_STATUS_POLL_MS);
+    return () => clearInterval(id);
+  }, [trackingJobId, address]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!address || !prompt.trim() || submitting) return;
+    setMessage(null);
+    setSubmitting(true);
+    const body: { wallet: string; prompt: string; siteId?: string } = {
+      wallet: address,
+      prompt: prompt.trim(),
+    };
+    if (hasMultipleSites && siteId) body.siteId = siteId;
+    const doFetch = fetchWithPayment ?? fetch;
+    try {
+      const res = await doFetch('/api/vendor/site/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setMessage({
+          type: 'payment',
+          text: fetchWithPayment
+            ? 'Payment failed or was cancelled. Ensure you have USDC on Base and approve the payment in your wallet.'
+            : 'Payment required ($0.50 USDC on Base). Connect your wallet and try again.',
+        });
+        return;
+      }
+      if (!res.ok) {
+        setMessage({ type: 'error', text: json.error ?? 'Update failed' });
+        return;
+      }
+      if (res.status === 202 && json.jobId) {
+        setTrackingJobId(json.jobId);
+        setMessage({ type: 'success', text: 'Update started. Tracking progress…' });
+      } else {
+        setMessage({ type: 'success', text: json.message ?? 'Site updated successfully.' });
+        setPrompt('');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      setMessage({ type: 'error', text: msg });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [address, prompt, submitting, hasMultipleSites, siteId, fetchWithPayment]);
+
+  if (!address) return null;
+  if (loading) {
+    return (
+      <WebsiteUpdateCardRoot>
+        <CardLabel>Website update</CardLabel>
+        <VendorProfilePlaceholder>Loading…</VendorProfilePlaceholder>
+      </WebsiteUpdateCardRoot>
+    );
+  }
+  if (updateableSites.length === 0) {
+    return (
+      <WebsiteUpdateCardRoot>
+        <CardLabel>Website update</CardLabel>
+        <VendorEmptyState>
+          Your site isn&apos;t ready yet. Complete onboarding to get your site.
+        </VendorEmptyState>
+      </WebsiteUpdateCardRoot>
+    );
+  }
+
+  const selectedSite = hasMultipleSites && siteId
+    ? updateableSites.find((s) => s.id === siteId)
+    : updateableSites[0];
+  const websiteUrl = selectedSite?.url;
+
+  return (
+    <WebsiteUpdateCardRoot>
+      <WebsiteUpdateCardHeader>
+        <CardLabel>Website update</CardLabel>
+        {websiteUrl && (
+          <OpenWebsiteLink href={websiteUrl} target="_blank" rel="noopener noreferrer">
+            Open website ↗
+          </OpenWebsiteLink>
+        )}
+      </WebsiteUpdateCardHeader>
+      <WebsiteUpdateNote>$0.50 USDC per prompt-based update (paid on Base)</WebsiteUpdateNote>
+      <form onSubmit={handleSubmit}>
+        {hasMultipleSites && (
+          <SiteSelectWrap>
+            <label htmlFor="vendor-site-select">Site</label>
+            <select
+              id="vendor-site-select"
+              value={siteId}
+              onChange={(e) => setSiteId(e.target.value)}
+              required
+            >
+              <option value="">Select a site</option>
+              {updateableSites.map((s) => (
+                <option key={s.id} value={s.id}>{s.url ?? s.id}</option>
+              ))}
+            </select>
+          </SiteSelectWrap>
+        )}
+        <PromptLabel htmlFor="vendor-update-prompt">What would you like to change?</PromptLabel>
+        <PromptTextarea
+          id="vendor-update-prompt"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="e.g. Add a lunch specials section"
+          rows={3}
+          required
+        />
+        <SubmitRow>
+          <WebsiteUpdateSubmit type="submit" disabled={submitting || !!trackingJobId}>
+            {submitting ? 'Starting…' : trackingJobId ? 'Update in progress…' : 'Request update'}
+          </WebsiteUpdateSubmit>
+        </SubmitRow>
+      </form>
+      {message && (
+        <MessageBanner $type={message.type}>
+          {message.text}
+        </MessageBanner>
+      )}
+    </WebsiteUpdateCardRoot>
+  );
+}
+
+// ── Campaign builder (x402 $1.00 activate) ──────────────────────────────────
+function VendorCampaignBuilderCard({ address }: { address: string | undefined }) {
+  const fetchWithPayment = useFetchWithPayment();
+  const [data, setData] = useState<VendorMe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'payment'; text: string } | null>(null);
+
+  const loadVendorMe = useCallback(() => {
+    if (!address) return;
+    setLoading(true);
+    fetch(`/api/vendor/me?wallet=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [address]);
+
+  useEffect(() => {
+    loadVendorMe();
+  }, [loadVendorMe]);
+
+  const suggestedCampaigns = (data?.campaigns ?? []).filter((c) => c.status === 'suggested');
+
+  const handleActivate = useCallback(async (campaignId: string) => {
+    if (!address) return;
+    setMessage(null);
+    setActivatingId(campaignId);
+    const doFetch = fetchWithPayment ?? fetch;
+    try {
+      const res = await doFetch(`/api/vendor/campaigns/${campaignId}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: address }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        setMessage({
+          type: 'payment',
+          text: fetchWithPayment
+            ? 'Payment failed or was cancelled. Ensure you have USDC on Base and approve the payment in your wallet.'
+            : 'Payment required ($1.00 USDC on Base). Connect your wallet and try again.',
+        });
+        return;
+      }
+      if (!res.ok) {
+        setMessage({ type: 'error', text: json.error ?? 'Activation failed' });
+        return;
+      }
+      setMessage({ type: 'success', text: `Campaign "${json.campaignId}" activated.` });
+      loadVendorMe();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      setMessage({ type: 'error', text: msg });
+    } finally {
+      setActivatingId(null);
+    }
+  }, [address, loadVendorMe, fetchWithPayment]);
+
+  if (!address) return null;
+  if (loading) {
+    return (
+      <CampaignBuilderCardRoot>
+        <CardLabel>Campaign builder</CardLabel>
+        <VendorProfilePlaceholder>Loading…</VendorProfilePlaceholder>
+      </CampaignBuilderCardRoot>
+    );
+  }
+
+  return (
+    <CampaignBuilderCardRoot>
+      <CardLabel>Campaign builder</CardLabel>
+      <WebsiteUpdateNote>$1.00 USDC per campaign activation (paid on Base)</WebsiteUpdateNote>
+      {suggestedCampaigns.length === 0 ? (
+        <VendorEmptyState>No suggested campaigns yet.</VendorEmptyState>
+      ) : (
+        <CampaignList>
+          {suggestedCampaigns.map((c) => (
+            <CampaignItem key={c.id}>
+              <CampaignItemName>{c.name}</CampaignItemName>
+              {c.description && <CampaignItemDesc>{c.description.slice(0, 120)}{c.description.length > 120 ? '…' : ''}</CampaignItemDesc>}
+              {c.suggestedDate && <CampaignItemMeta>Suggested: {c.suggestedDate}</CampaignItemMeta>}
+              <ActivateBtn
+                type="button"
+                onClick={() => handleActivate(c.id)}
+                disabled={!!activatingId}
+              >
+                {activatingId === c.id ? 'Activating…' : 'Activate'}
+              </ActivateBtn>
+            </CampaignItem>
+          ))}
+        </CampaignList>
+      )}
+      {message && (
+        <MessageBanner $type={message.type}>
+          {message.text}
+        </MessageBanner>
+      )}
+    </CampaignBuilderCardRoot>
+  );
+}
+
 export default function VendorDashboard() {
   const { address, isConnected } = useAccount();
   const { user } = useUser();
@@ -618,6 +808,27 @@ export default function VendorDashboard() {
                   You're connected with the agent wallet. Connect your vendor wallet to view and manage your vendor funds.
                 </AgentWalletWarning>
               )}
+              <BalanceCardsRow>
+                <BalanceCard>
+                  <CardLabel>USDC Balance</CardLabel>
+                  {isConnectedAgentWallet && (
+                    <BalanceCardNote>Showing agent wallet — connect your vendor wallet for your funds</BalanceCardNote>
+                  )}
+                  <BalanceRow>
+                    <BalanceAmount>
+                      ${usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
+                    </BalanceAmount>
+                    <CurrencyTag>USDC</CurrencyTag>
+                  </BalanceRow>
+                  <SubBalance>
+                    {ethBalance ? parseFloat(ethBalance.formatted).toFixed(6) : '0'} ETH (gas)
+                  </SubBalance>
+                  <CardActions>
+                    <FundButton />
+                  </CardActions>
+                </BalanceCard>
+                <AdiBalanceCard />
+              </BalanceCardsRow>
               <Columns>
                 <LeftColumn>
                   <VendorProfileCard address={vendorLookupAddress} />
@@ -672,27 +883,8 @@ export default function VendorDashboard() {
                     </ActionList>
                   </QuickActions>
 
-                  <BalanceCard>
-                    <CardLabel>USDC Balance</CardLabel>
-                    {isConnectedAgentWallet && (
-                      <BalanceCardNote>Showing agent wallet — connect your vendor wallet for your funds</BalanceCardNote>
-                    )}
-                    <BalanceRow>
-                      <BalanceAmount>
-                        ${usdcBalance ? parseFloat(usdcBalance.formatted).toFixed(2) : '0.00'}
-                      </BalanceAmount>
-                      <CurrencyTag>USDC</CurrencyTag>
-                    </BalanceRow>
-                    <SubBalance>
-                      {ethBalance ? parseFloat(ethBalance.formatted).toFixed(6) : '0'} ETH (gas)
-                    </SubBalance>
-                    <CardActions>
-                      <FundButton />
-                    </CardActions>
-                  </BalanceCard>
-
-                  <AdiBalanceCard />
-                  <AgentIdentityCard />
+                  <VendorWebsiteUpdateCard address={vendorLookupAddress} />
+                  <VendorCampaignBuilderCard address={vendorLookupAddress} />
                 </RightColumn>
               </Columns>
             </DashboardGrid>
@@ -753,7 +945,7 @@ const HeaderConnectWrap = styled.div`
 `;
 
 const Main = styled.main`
-  max-width: 720px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
   animation: ${fadeIn} 0.4s ease;
@@ -1054,10 +1246,21 @@ const DashboardGrid = styled.div`
   gap: 1rem;
 `;
 
+const BalanceCardsRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: stretch;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 const Columns = styled.div`
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 1rem;
+  grid-template-columns: 0.9fr 1.5fr;
+  gap: 1.5rem;
   align-items: start;
 
   @media (max-width: 900px) {
@@ -1070,6 +1273,7 @@ const LeftColumn = styled.div`
   flex-direction: column;
   gap: 1rem;
   align-items: stretch;
+  justify-content: flex-start;
 `;
 
 const RightColumn = styled.div`
@@ -1207,6 +1411,130 @@ const ActionIcon = styled.span`
   color: ${({ theme }) => theme.accent};
 `;
 
+/* ─── Website update & Campaign builder cards ────────────────────── */
+const WebsiteUpdateCardRoot = styled(Card)``;
+const WebsiteUpdateCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+`;
+const OpenWebsiteLink = styled.a`
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+`;
+const WebsiteUpdateNote = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 0.75rem;
+`;
+const SiteSelectWrap = styled.div`
+  margin-bottom: 0.75rem;
+  label { display: block; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.25rem; color: ${({ theme }) => theme.text}; }
+  select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid ${({ theme }) => theme.border};
+    background: ${({ theme }) => theme.background};
+    color: ${({ theme }) => theme.text};
+    font-size: 0.9rem;
+  }
+`;
+const PromptLabel = styled.label`
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: ${({ theme }) => theme.text};
+`;
+const PromptTextarea = styled.textarea`
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.background};
+  color: ${({ theme }) => theme.text};
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 0.75rem;
+  font-family: inherit;
+`;
+const SubmitRow = styled.div` margin-top: 0.5rem; `;
+const WebsiteUpdateSubmit = styled.button`
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: ${({ theme }) => theme.accent};
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover:not(:disabled) { opacity: 0.9; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+const MessageBanner = styled.div<{ $type: 'success' | 'error' | 'payment' }>`
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: ${({ theme, $type }) =>
+    $type === 'success' ? (theme.success ? `${theme.success}20` : 'rgba(34, 197, 94, 0.15)') :
+    $type === 'payment' ? (theme.warning ? `${theme.warning}20` : 'rgba(245, 158, 11, 0.15)') :
+    (theme.error ? `${theme.error}20` : 'rgba(239, 68, 68, 0.15)')};
+  border: 1px solid ${({ theme, $type }) =>
+    $type === 'success' ? (theme.success ?? '#22c55e') :
+    $type === 'payment' ? (theme.warning ?? '#F59E0B') :
+    (theme.error ?? '#ef4444')};
+  color: ${({ theme }) => theme.text};
+`;
+const CampaignBuilderCardRoot = styled(Card)``;
+const CampaignList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+const CampaignItem = styled.div`
+  padding: 0.75rem;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 8px;
+  background: ${({ theme }) => theme.backgroundAlt};
+`;
+const CampaignItemName = styled.div`
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+`;
+const CampaignItemDesc = styled.div`
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 0.25rem;
+`;
+const CampaignItemMeta = styled.div`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin-bottom: 0.5rem;
+`;
+const ActivateBtn = styled.button`
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: ${({ theme }) => theme.accent};
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover:not(:disabled) { opacity: 0.9; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+
 /* ─── ADI balance card ───────────────────────────────────────────── */
 const AdiCard = styled(Card)`
   border-color: #7c3aed33;
@@ -1302,84 +1630,6 @@ const AdiError = styled.div`
   border: 1px solid #ef444433;
   border-radius: 8px;
   padding: 10px 12px;
-`;
-
-/* ─── agent identity card ────────────────────────────────────────── */
-const IdentityCard = styled(Card)``;
-
-const IdentityHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-`;
-
-const IdentityBadge = styled.span<{ $registered?: boolean }>`
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: ${({ theme, $registered }) => ($registered ? theme.success : theme.textMuted)};
-  background: ${({ theme, $registered }) => ($registered ? `${theme.success}20` : theme.backgroundAlt)};
-  border: 1px solid ${({ theme, $registered }) => ($registered ? theme.success : theme.borderSubtle)};
-  padding: 2px 8px;
-  border-radius: 20px;
-`;
-
-const IdentityDesc = styled.p`
-  font-size: 0.8rem;
-  color: ${({ theme }) => theme.textMuted};
-  margin: 0 0 1rem;
-  line-height: 1.5;
-`;
-
-const IdentityAgentId = styled.div`
-  font-size: 0.8rem;
-  margin-bottom: 1rem;
-  color: ${({ theme }) => theme.textMuted};
-`;
-
-const IdentityActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-`;
-
-const RegisterBtn = styled.button<{ $loading?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #fff;
-  background: ${({ theme }) => theme.accent};
-  border: none;
-  border-radius: 8px;
-  cursor: ${({ $loading }) => ($loading ? 'wait' : 'pointer')};
-  opacity: ${({ $loading }) => ($loading ? 0.8 : 1)};
-  &:hover:not(:disabled) {
-    opacity: 0.95;
-  }
-  &:disabled {
-    cursor: not-allowed;
-  }
-`;
-
-const IdentityLink = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.accent};
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-`;
-
-const IdentityError = styled.div`
-  font-size: 0.8rem;
-  color: #ef4444;
-  margin-top: 0.75rem;
 `;
 
 /* ─── vendor profile card ─────────────────────────────────────────── */

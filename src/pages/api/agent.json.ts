@@ -40,6 +40,16 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
         endpoint: `${host}/onboard`,
         description: 'Vendor onboarding flow with ERC-8021 attributed activation fee',
       },
+      {
+        type: 'https',
+        endpoint: `${host}/api/vendor/site/update`,
+        description: 'Vendor website update — $0.50 USDC on Base per prompt-based site update (POST, body: wallet, prompt, siteId?)',
+      },
+      {
+        type: 'https',
+        endpoint: `${host}/api/vendor/campaigns/:id/activate`,
+        description: 'Vendor campaign activation — $1.00 USDC on Base per campaign activation (POST, body: wallet)',
+      },
     ],
     supportedTrust: ['reputation'],
     registrations: [],
