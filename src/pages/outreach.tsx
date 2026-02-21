@@ -1,5 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ChangeEvent, type MouseEvent } from 'react';
 import { useRouter } from 'next/router';
+import styled, { keyframes } from 'styled-components';
+import type { VendorResult, DraftPreview } from '@/components/ops/tabs/OutreachTab';
+import { hasEnrichmentData, parseReviews, parseCategories, formatCategory, renderStars, timeAgo } from '@/components/ops/tabs/OutreachTab';
 
 export default function OutreachPage() {
   const router = useRouter();
@@ -294,7 +297,7 @@ export default function OutreachPage() {
             <Label>Keyword</Label>
             <TextInput
               value={keyword}
-              onChange={e => setKeyword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setKeyword(e.target.value)}
               placeholder="food truck, restaurant, market vendor..."
             />
           </InputGroup>
@@ -307,7 +310,7 @@ export default function OutreachPage() {
                 min={1}
                 max={25}
                 value={radius}
-                onChange={e => setRadius(Number(e.target.value))}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setRadius(Number(e.target.value))}
               />
               <SliderLabels>
                 <span>1 mi</span>
@@ -325,7 +328,7 @@ export default function OutreachPage() {
             <DemoToggleInput
               type="checkbox"
               checked={demoOnly}
-              onChange={e => setDemoOnly(e.target.checked)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setDemoOnly(e.target.checked)}
             />
             Demo mode <DemoToggleHint>(skip live API calls — use seeded test vendors only)</DemoToggleHint>
           </DemoToggleLabel>
@@ -376,7 +379,7 @@ export default function OutreachPage() {
                 <IntentBadge $intent={r.intent}>{r.intent.replace(/_/g, ' ')}</IntentBadge>
                 <ReplyResultSummary>{r.summary}</ReplyResultSummary>
                 <ReplyResultMeta>
-                  {r.autoReplySent && <AutoReplyBadge>↩ auto-replied</AutoReplyBadge>}
+                  {r.followUpSent && <AutoReplyBadge>↩ auto-replied</AutoReplyBadge>}
                   {r.prospectCode && (
                     <ProspectCodePill>#{r.prospectCode}</ProspectCodePill>
                   )}
@@ -581,7 +584,7 @@ export default function OutreachPage() {
 
       {draftPreview && (
         <ModalOverlay onClick={closeDraftModal}>
-          <ModalContent onClick={e => e.stopPropagation()}>
+          <ModalContent onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
             <ModalHeader>
               <ModalTitle>Draft Email — {draftPreview.vendorName}</ModalTitle>
               <CloseButton onClick={closeDraftModal}>&times;</CloseButton>

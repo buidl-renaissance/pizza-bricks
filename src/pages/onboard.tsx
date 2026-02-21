@@ -1059,6 +1059,12 @@ const Label = styled.label`
   color: ${({ theme }) => theme.textSecondary};
 `;
 
+const ErrorText = styled.p`
+  font-size: 0.875rem;
+  color: #c53030;
+  margin: 0.5rem 0 0;
+`;
+
 const Input = styled.input`
   padding: 9px 12px;
   border-radius: 8px;
@@ -1232,9 +1238,9 @@ const TokenSuccessAddr = styled.div`
 const TokenError = styled.div`
   margin-top: 8px;
   font-size: 0.78rem;
-  color: ${({ theme }) => theme.error ?? '#ef4444'};
-  background: ${({ theme }) => theme.error ? `${theme.error}10` : '#ef444410'};
-  border: 1px solid ${({ theme }) => theme.error ? `${theme.error}33` : '#ef444433'};
+  color: #ef4444;
+  background: #ef444410;
+  border: 1px solid #ef444433;
   border-radius: 6px;
   padding: 8px 12px;
 `;

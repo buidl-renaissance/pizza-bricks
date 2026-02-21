@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import styled, { keyframes } from 'styled-components';
 
-interface VendorResult {
+export interface VendorResult {
   id: string;
   googlePlaceId?: string | null;
   facebookPageUrl?: string | null;
@@ -25,7 +25,7 @@ interface VendorResult {
   notes: string | null;
 }
 
-interface DraftPreview {
+export interface DraftPreview {
   emailId: string;
   vendorId: string;
   vendorName: string;
@@ -35,14 +35,14 @@ interface DraftPreview {
   menuItems: { name: string; description: string; price?: string }[];
 }
 
-interface Review {
+export interface Review {
   text: string;
   rating: number;
   authorName: string;
   publishTime?: string;
 }
 
-function hasEnrichmentData(vendor: VendorResult): boolean {
+export function hasEnrichmentData(vendor: VendorResult): boolean {
   if (vendor.email) return true;
   if (!vendor.recentPosts) return false;
   try {
@@ -53,7 +53,7 @@ function hasEnrichmentData(vendor: VendorResult): boolean {
   }
 }
 
-function parseReviews(vendor: VendorResult): Review[] {
+export function parseReviews(vendor: VendorResult): Review[] {
   if (!vendor.topReviews) return [];
   try {
     const parsed = JSON.parse(vendor.topReviews);
@@ -63,7 +63,7 @@ function parseReviews(vendor: VendorResult): Review[] {
   }
 }
 
-function parseCategories(categories: string | null): string[] {
+export function parseCategories(categories: string | null): string[] {
   if (!categories) return [];
   try {
     return JSON.parse(categories);
@@ -72,17 +72,17 @@ function parseCategories(categories: string | null): string[] {
   }
 }
 
-function formatCategory(cat: string): string {
+export function formatCategory(cat: string): string {
   return cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function renderStars(rating: number): string {
+export function renderStars(rating: number): string {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5 ? 1 : 0;
   return '\u2605'.repeat(full) + (half ? '\u00BD' : '') + '\u2606'.repeat(5 - full - half);
 }
 
-function timeAgo(dateStr?: string): string {
+export function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
