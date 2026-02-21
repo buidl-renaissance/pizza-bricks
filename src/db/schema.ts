@@ -7,7 +7,7 @@ export type ProspectSource = 'yelp'|'google_maps'|'directory'|'manual'|'referral
 export type PipelineStage = 'discovered'|'contacted'|'engaged'|'onboarding'|'converted'|'churned';
 export type ActivityEventType =
   | 'email_sent'|'email_opened'|'email_replied'|'email_bounced'
-  | 'site_generated'|'site_published'|'site_viewed'|'prospect_discovered'|'prospect_batch_scraped'
+  | 'site_generated'|'site_published'|'site_updated'|'site_viewed'|'prospect_discovered'|'prospect_batch_scraped'
   | 'onboarding_started'|'wallet_setup'|'onboarding_completed'|'follow_up_triggered'
   | 'marketing_materials_requested'|'event_influencer_requested'|'reply_intent_parsed'
   | 'manual_action'|'agent_error';
@@ -146,7 +146,7 @@ export const vendors = sqliteTable('vendors', {
 
 // Outreach email status
 export const EMAIL_STATUSES = ['draft', 'sent', 'bounced'] as const;
-export type EmailStatus = typeof EMAIL_STATUSES[number];
+export type OutreachEmailStatus = typeof EMAIL_STATUSES[number];
 
 // Outreach emails table — log of drafted and sent emails
 export const outreachEmails = sqliteTable('outreach_emails', {
@@ -154,7 +154,7 @@ export const outreachEmails = sqliteTable('outreach_emails', {
   vendorId: text('vendorId').notNull().references(() => vendors.id),
   subject: text('subject').notNull(),
   bodyHtml: text('bodyHtml').notNull(),
-  status: text('status').$type<EmailStatus>().default('draft').notNull(),
+  status: text('status').$type<OutreachEmailStatus>().default('draft').notNull(),
   gmailMessageId: text('gmailMessageId'), // set after successful send
   sentAt: integer('sentAt', { mode: 'timestamp' }),
   createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import styled, { keyframes } from 'styled-components';
 import { useProspects, useSites } from '@/hooks/useOpsData';
 import type { PipelineStage } from '@/db/schema';
@@ -193,6 +194,19 @@ const SyncDeployButton = styled.button`
   &:disabled { opacity: 0.7; cursor: wait; }
 `;
 
+const OutreachLink = styled(Link)`
+  padding: 0.4rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.text};
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  &:hover { border-color: ${({ theme }) => theme.accent}; color: ${({ theme }) => theme.accent}; }
+`;
+
 // STATUS_LABELS for card badge
 const STATUS_LABELS: Record<string, string> = {
   generating: 'Generating…',
@@ -363,6 +377,7 @@ export function PipelineTab() {
         <SyncDeployButton type="button" onClick={handleSyncDeployments} disabled={syncLoading}>
           {syncLoading ? 'Syncing…' : 'Sync deployment status'}
         </SyncDeployButton>
+        <OutreachLink href="/outreach">Discover & outreach</OutreachLink>
       </div>
     <Board>
       {STAGES.map(stage => {

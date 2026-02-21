@@ -15,6 +15,13 @@
       "when": 1771563482432,
       "tag": "0001_icy_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1771639177697,
+      "tag": "0002_yellow_newton_destine",
+      "breakpoints": true
     }
   ]
 }

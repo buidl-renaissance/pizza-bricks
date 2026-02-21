@@ -123,6 +123,12 @@ export default function OutreachPage() {
   const [draftPreview, setDraftPreview] = useState<DraftPreview | null>(null);
   const [draftingVendorId, setDraftingVendorId] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [preparedVendors, setPreparedVendors] = useState<Record<string, {
+    prospectId: string;
+    siteId: string;
+    siteUrl?: string;
+    status: 'preparing' | 'polling' | 'ready' | 'error';
+  }>>({});
   const [sendConfirm, setSendConfirm] = useState(false);
   const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -157,13 +163,82 @@ export default function OutreachPage() {
     setSendResult(null);
   }, []);
 
+  const handlePrepareOutreach = useCallback(async (vendor: VendorResult) => {
+    if (!vendor.email) {
+      setError('Vendor has no email address');
+      return;
+    }
+    setPreparedVendors(prev => ({
+      ...prev,
+      [vendor.id]: { prospectId: '', siteId: '', status: 'preparing' },
+    }));
+    setError(null);
+    try {
+      const res = await fetch('/api/outreach/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendorId: vendor.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Prepare failed');
+      setPreparedVendors(prev => ({
+        ...prev,
+        [vendor.id]: {
+          prospectId: data.prospectId,
+          siteId: data.siteId,
+          status: 'polling',
+        },
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Prepare failed');
+      setPreparedVendors(prev => ({
+        ...prev,
+        [vendor.id]: { prospectId: '', siteId: '', status: 'error' },
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const polling = Object.entries(preparedVendors)
+      .filter(([, p]) => p.status === 'polling' && p.siteId);
+    if (polling.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const [vendorId, prep] of polling) {
+        try {
+          const res = await fetch(`/api/outreach/site-status/${prep.siteId}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const url = data.url;
+          const status = data.status;
+          if (url || ['published', 'pending_review'].includes(status)) {
+            setPreparedVendors(prev => ({
+              ...prev,
+              [vendorId]: {
+                ...prev[vendorId],
+                siteUrl: url || prev[vendorId]?.siteUrl,
+                status: 'ready',
+              },
+            }));
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [preparedVendors]);
+
   const handleDraftPreview = useCallback(async (vendor: VendorResult) => {
+    const prep = preparedVendors[vendor.id];
+    const siteUrl = prep?.status === 'ready' ? prep.siteUrl : undefined;
+
     setDraftingVendorId(vendor.id);
     try {
       const res = await fetch('/api/outreach/draft-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vendorId: vendor.id }),
+        body: JSON.stringify({ vendorId: vendor.id, siteUrl: siteUrl || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Draft failed');
@@ -181,7 +256,7 @@ export default function OutreachPage() {
     } finally {
       setDraftingVendorId(null);
     }
-  }, []);
+  }, [preparedVendors]);
 
   const handleSearch = async () => {
     setLoading(true);
@@ -433,17 +508,42 @@ export default function OutreachPage() {
                 )}
 
                 <CardActions>
-                  <ActionRow>
-                    <DraftButton
-                      onClick={() => handleDraftPreview(vendor)}
-                      disabled={isDrafting}
-                    >
-                      {isDrafting ? 'Drafting...' : 'Preview Draft'}
-                    </DraftButton>
-                    <CampaignButton disabled>
-                      Send (Disabled)
-                    </CampaignButton>
-                  </ActionRow>
+                  {(() => {
+                    const prep = preparedVendors[vendor.id];
+                    const isPreparing = prep?.status === 'preparing' || prep?.status === 'polling';
+                    const isReady = prep?.status === 'ready';
+                    const isError = prep?.status === 'error';
+                    return (
+                      <>
+                        {prep?.status === 'ready' && prep.siteUrl && (
+                          <SiteReadyRow>
+                            <SiteReadyLabel>Site ready:</SiteReadyLabel>
+                            <SiteLink href={prep.siteUrl} target="_blank" rel="noopener noreferrer">
+                              {prep.siteUrl}
+                            </SiteLink>
+                          </SiteReadyRow>
+                        )}
+                        <ActionRow>
+                          <PrepareButton
+                            onClick={() => handlePrepareOutreach(vendor)}
+                            disabled={isPreparing || !vendor.email}
+                            $status={prep?.status}
+                          >
+                            {isPreparing ? 'Generating site...' : isReady ? 'Site ready' : isError ? 'Retry prepare' : 'Prepare outreach'}
+                          </PrepareButton>
+                          <DraftButton
+                            onClick={() => handleDraftPreview(vendor)}
+                            disabled={isDrafting || !isReady}
+                          >
+                            {isDrafting ? 'Drafting...' : 'Preview Draft'}
+                          </DraftButton>
+                          <CampaignButton disabled>
+                            Send (Disabled)
+                          </CampaignButton>
+                        </ActionRow>
+                      </>
+                    );
+                  })()}
                 </CardActions>
               </CardBody>
             </VendorCard>
@@ -1117,6 +1217,48 @@ const CardActions = styled.div`
 const ActionRow = styled.div`
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const SiteReadyRow = styled.div`
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+`;
+
+const SiteReadyLabel = styled.span`
+  color: ${p => p.theme.textMuted};
+  margin-right: 6px;
+`;
+
+const SiteLink = styled.a`
+  color: ${p => p.theme.accent};
+  text-decoration: none;
+  word-break: break-all;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const PrepareButton = styled.button<{ $status?: string }>`
+  padding: 10px;
+  border-radius: ${p => p.theme.borderRadius};
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: ${p => p.$status === 'ready' ? 'rgba(16, 185, 129, 0.15)' : p.theme.backgroundAlt};
+  color: ${p => p.$status === 'ready' ? '#10B981' : p.theme.text};
+  border: 1px solid ${p => p.$status === 'ready' ? 'rgba(16, 185, 129, 0.3)' : p.theme.border};
+  transition: background 0.15s ease, opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: ${p => p.$status === 'ready' ? 'rgba(16, 185, 129, 0.25)' : p.theme.borderSubtle};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const DraftButton = styled.button`

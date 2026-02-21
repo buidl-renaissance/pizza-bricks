@@ -19,6 +19,7 @@ import type {
   GeneratedSiteStatus,
   AgentStatus,
 } from './schema';
+import type { Vendor } from './schema';
 import { broadcastActivity } from '@/lib/sse-broadcast';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -111,6 +112,68 @@ export async function getPipelineSummary(): Promise<{ stage: PipelineStage; coun
     count: count(),
   }).from(prospects).groupBy(prospects.pipelineStage);
   return rows.map(r => ({ stage: r.stage as PipelineStage, count: Number(r.count) }));
+}
+
+/** Find prospect by vendorId stored in metadata. */
+export async function getProspectByVendorId(vendorId: string): Promise<Prospect | undefined> {
+  const db = getDb();
+  const rows = await db.select().from(prospects)
+    .where(sql`json_extract(${prospects.metadata}, '$.vendorId') = ${vendorId}`)
+    .limit(1);
+  return rows[0];
+}
+
+/** Map vendor categories to ProspectType. */
+function vendorCategoriesToProspectType(categories: string | null): ProspectType {
+  if (!categories) return 'other';
+  let raw: string[];
+  try {
+    raw = JSON.parse(categories) as string[];
+  } catch {
+    return 'other';
+  }
+  const lower = raw.join(' ').toLowerCase();
+  if (lower.includes('food truck') || lower.includes('food_truck')) return 'food_truck';
+  if (lower.includes('restaurant')) return 'restaurant';
+  if (lower.includes('pizzeria') || lower.includes('pizza')) return 'pizzeria';
+  if (lower.includes('catering')) return 'catering';
+  if (lower.includes('bakery')) return 'bakery';
+  if (lower.includes('deli')) return 'deli';
+  return 'other';
+}
+
+/** Extract city from address string (e.g. "123 Main St, Detroit, MI"). */
+function extractCityFromAddress(address: string | null): string | null {
+  if (!address) return null;
+  const parts = address.split(',').map(s => s.trim());
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0] ?? null;
+}
+
+/** Get or create a prospect from a vendor (outreach flow). Links via metadata.vendorId. */
+export async function getOrCreateProspectFromVendor(vendor: Vendor): Promise<Prospect> {
+  const existing = await getProspectByVendorId(vendor.id);
+  if (existing) return existing;
+
+  const city = extractCityFromAddress(vendor.address ?? null);
+  const type = vendorCategoriesToProspectType(vendor.categories);
+
+  return insertProspect({
+    name: vendor.name,
+    type,
+    email: vendor.email ?? undefined,
+    phone: vendor.phone ?? undefined,
+    address: vendor.address ?? undefined,
+    city: city ?? undefined,
+    source: 'google_maps',
+    pipelineStage: 'discovered',
+    metadata: { vendorId: vendor.id },
+  });
+}
+
+/** Most recent published or pending_review site for a prospect. */
+export async function getLatestPublishedSiteForProspect(prospectId: string): Promise<GeneratedSite | undefined> {
+  const sites = await listGeneratedSites({ prospectId, limit: 10 });
+  return sites.find(s => s.status === 'published' || s.status === 'pending_review');
 }
 
 // ── Activity Events ───────────────────────────────────────────────────────────

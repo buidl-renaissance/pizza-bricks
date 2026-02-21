@@ -86,7 +86,11 @@ If you cannot determine any menu items, return an empty array [].`;
   }
 }
 
-export async function draftOutreachEmail(vendor: VendorContext, menuItems: MenuItem[]): Promise<{ subject: string; bodyHtml: string }> {
+export async function draftOutreachEmail(
+  vendor: VendorContext,
+  menuItems: MenuItem[],
+  siteUrl?: string
+): Promise<{ subject: string; bodyHtml: string }> {
   const model = getModel();
 
   let categories: string[] = [];
@@ -130,7 +134,9 @@ GUIDELINES:
 - The email should be friendly, not salesy or pushy
 - Reference specific details: mention a popular dish, a positive review, or their rating
 - Explain that we noticed they don't have a website and we'd love to help
-- Mention we can build them a sample website for free to see if they like it
+${siteUrl
+  ? `- IMPORTANT: We have already built a sample site for them. Include this exact link in the email: ${siteUrl}. Say we've built a sample site and invite them to click the link to see it.`
+  : '- Mention we can build them a sample website for free to see if they like it'}
 - Keep it concise — 3-4 short paragraphs max
 - Sign off as "The Pizza Bricks Team"
 - Do NOT include any placeholder brackets like [Name] — use the actual business name

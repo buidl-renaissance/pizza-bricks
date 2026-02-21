@@ -13,65 +13,98 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: 'cold_outreach_1',
     sequenceStep: 1,
-    subject: 'Get your free website & accept online orders — Bricks',
+    subject: 'Free website + Detroit neighborhood campaign — Pizza Bricks',
     html: (vars) => `
 <p>${greeting(vars)},</p>
-<p>We came across <strong>${vars.name}</strong> and wanted to reach out. Bricks helps Detroit food vendors like you get a free professional website and start accepting orders online — no monthly fees, no technical setup required.</p>
-<p>We handle everything: the site, the payments, and the crypto-backed loyalty program your customers will love.</p>
-<p>Interested in a free demo? Just reply to this email or book a 15-minute call.</p>
-<p>Best,<br>The Bricks Team</p>
+
+<p>I'm reaching out from <strong>Pizza Bricks</strong> — a Detroit community initiative that pairs local food vendors with a neighborhood marketing campaign and a free AI-generated website.</p>
+
+<p>Here's how it works for <strong>${vars.name}</strong>:</p>
+<ol>
+  <li>Our community bot builds you a free, fully deployed professional website — live within 24 hours.</li>
+  <li>Your business gets featured in the <strong>Pizza Bricks community game</strong>, which drives Detroit residents to discover and visit participating local spots.</li>
+  <li>We run a local marketing campaign on your behalf: neighborhood promos, digital assets, and social content — at no cost to you.</li>
+</ol>
+
+<p>No fees, no technical setup, no catch. We're building this community together.</p>
+
+<p>Interested? Just reply and we'll send over a preview of what your site would look like, or we can jump on a quick 10-minute call.</p>
+
+<p>Best,<br>
+The Pizza Bricks Team<br>
+<a href="https://builddetroit.xyz">builddetroit.xyz</a></p>
 `,
     text: (vars) => `${greeting(vars)},
 
-We came across ${vars.name} and wanted to reach out. Bricks helps Detroit food vendors like you get a free professional website and start accepting orders online — no monthly fees, no technical setup required.
+I'm reaching out from Pizza Bricks — a Detroit community initiative that pairs local food vendors with a neighborhood marketing campaign and a free AI-generated website.
 
-We handle everything: the site, the payments, and the crypto-backed loyalty program your customers will love.
+Here's how it works for ${vars.name}:
 
-Interested in a free demo? Just reply to this email or book a 15-minute call.
+1. Our community bot builds you a free, fully deployed professional website — live within 24 hours.
+2. Your business gets featured in the Pizza Bricks community game, which drives Detroit residents to discover and visit participating local spots.
+3. We run a local marketing campaign on your behalf: neighborhood promos, digital assets, and social content — at no cost to you.
+
+No fees, no technical setup, no catch. We're building this community together.
+
+Interested? Just reply and we'll send over a preview of what your site would look like, or we can jump on a quick 10-minute call.
 
 Best,
-The Bricks Team`,
+The Pizza Bricks Team
+builddetroit.xyz`,
   },
   {
     id: 'follow_up_1',
     sequenceStep: 2,
-    subject: 'Following up — free website for ${vars.name}',
+    subject: 'Following up — free site + Detroit campaign',
     html: (vars) => `
 <p>${greeting(vars)},</p>
-<p>Just following up on our last note about getting <strong>${vars.name}</strong> set up with a free website on Bricks.</p>
-<p>We recently launched sites for several Detroit food vendors and they're already seeing more orders. We'd love to do the same for you — completely free to start.</p>
-<p>Any questions? Hit reply and I'll answer them personally.</p>
-<p>Best,<br>The Bricks Team</p>
+
+<p>Wanted to follow up on our note about the free website and Detroit neighborhood campaign for <strong>${vars.name}</strong> through Pizza Bricks.</p>
+
+<p>We've launched sites for several Detroit food vendors this month and they're already seeing more foot traffic from the community game and local campaign. The whole thing takes about 24 hours from a yes to going live.</p>
+
+<p>If you have any questions about how it works, or want us to just go ahead and show you a draft of your site, just hit reply — happy to make it easy.</p>
+
+<p>Best,<br>
+The Pizza Bricks Team</p>
 `,
     text: (vars) => `${greeting(vars)},
 
-Just following up on our last note about getting ${vars.name} set up with a free website on Bricks.
+Wanted to follow up on our note about the free website and Detroit neighborhood campaign for ${vars.name} through Pizza Bricks.
 
-We recently launched sites for several Detroit food vendors and they're already seeing more orders. We'd love to do the same for you — completely free to start.
+We've launched sites for several Detroit food vendors this month and they're already seeing more foot traffic from the community game and local campaign. The whole thing takes about 24 hours from a yes to going live.
 
-Any questions? Hit reply and I'll answer them personally.
+If you have any questions about how it works, or want us to just go ahead and show you a draft of your site, just hit reply — happy to make it easy.
 
 Best,
-The Bricks Team`,
+The Pizza Bricks Team`,
   },
   {
     id: 'follow_up_2',
     sequenceStep: 3,
-    subject: 'Last note — your free Bricks site',
+    subject: 'Last note — Pizza Bricks campaign for your business',
     html: (vars) => `
 <p>${greeting(vars)},</p>
-<p>This is our last follow-up regarding a free website for <strong>${vars.name}</strong> on the Bricks platform.</p>
-<p>If you're not interested right now, no worries — just let us know and we won't reach out again. But if timing is an issue, we're happy to connect whenever works best for you.</p>
-<p>Best,<br>The Bricks Team</p>
+
+<p>This is our last follow-up about the free Pizza Bricks website and local marketing campaign for <strong>${vars.name}</strong>.</p>
+
+<p>If now isn't the right time, no problem — just reply and let us know, and we won't reach out again. We'll be onboarding the next batch of Detroit vendors in a few weeks if you'd like to revisit then.</p>
+
+<p>Either way, we appreciate what you're doing for the Detroit food scene.</p>
+
+<p>Best,<br>
+The Pizza Bricks Team</p>
 `,
     text: (vars) => `${greeting(vars)},
 
-This is our last follow-up regarding a free website for ${vars.name} on the Bricks platform.
+This is our last follow-up about the free Pizza Bricks website and local marketing campaign for ${vars.name}.
 
-If you're not interested right now, no worries — just let us know and we won't reach out again. But if timing is an issue, we're happy to connect whenever works best for you.
+If now isn't the right time, no problem — just reply and let us know, and we won't reach out again. We'll be onboarding the next batch of Detroit vendors in a few weeks if you'd like to revisit then.
+
+Either way, we appreciate what you're doing for the Detroit food scene.
 
 Best,
-The Bricks Team`,
+The Pizza Bricks Team`,
   },
 ];
 
