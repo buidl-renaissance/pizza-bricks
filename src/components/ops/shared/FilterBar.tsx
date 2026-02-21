@@ -31,6 +31,7 @@ export const FILTER_OPTIONS = [
   { label: 'Discovery', value: 'discovery' },
   { label: 'Onboarding', value: 'onboarding' },
   { label: 'Errors', value: 'error' },
+  { label: 'Manual', value: 'manual' },
 ] as const;
 
 export type FilterValue = typeof FILTER_OPTIONS[number]['value'];

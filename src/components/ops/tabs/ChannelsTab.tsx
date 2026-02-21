@@ -223,7 +223,7 @@ export function ChannelsTab() {
           <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: 0 }}>Loading...</p>
         ) : sites.length === 0 ? (
           <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: 0 }}>
-            No sites generated yet. Use Manual Actions → Generate Site to start one.
+            No sites generated yet. Use Activity → Quick Actions → Generate Site to start one.
           </p>
         ) : (
           sites.map(s => (

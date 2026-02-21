@@ -9,7 +9,6 @@ const OverviewTab = dynamic(() => import('./tabs/OverviewTab').then(m => ({ defa
 const PipelineTab = dynamic(() => import('./tabs/PipelineTab').then(m => ({ default: m.PipelineTab })), { ssr: false });
 const ChannelsTab = dynamic(() => import('./tabs/ChannelsTab').then(m => ({ default: m.ChannelsTab })), { ssr: false });
 const ActivityTab = dynamic(() => import('./tabs/ActivityTab').then(m => ({ default: m.ActivityTab })), { ssr: false });
-const ManualActionsTab = dynamic(() => import('./tabs/ManualActionsTab').then(m => ({ default: m.ManualActionsTab })), { ssr: false });
 const OutreachTab = dynamic(() => import('./tabs/OutreachTab').then(m => ({ default: m.OutreachTab })), { ssr: false });
 const CampaignsSuggestTab = dynamic(() => import('./tabs/CampaignsSuggestTab').then(m => ({ default: m.CampaignsSuggestTab })), { ssr: false });
 const CampaignsEventsTab = dynamic(() => import('./tabs/CampaignsEventsTab').then(m => ({ default: m.CampaignsEventsTab })), { ssr: false });
@@ -24,7 +23,6 @@ const TABS = [
   { id: 'pipeline', label: 'Pipeline', icon: '🔀' },
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
-  { id: 'actions', label: 'Actions', icon: '🖐' },
   { id: 'outreach', label: 'Outreach', icon: '📤' },
   { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
   { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
@@ -182,7 +180,6 @@ export function OpsShell() {
         {activeTab === 'pipeline' && <PipelineTab />}
         {activeTab === 'channels' && <ChannelsTab />}
         {activeTab === 'activity' && <ActivityTab />}
-        {activeTab === 'actions' && <ManualActionsTab />}
         {activeTab === 'outreach' && <OutreachTab />}
         {activeTab === 'campaigns-suggest' && <CampaignsSuggestTab />}
         {activeTab === 'campaigns-events' && <CampaignsEventsTab />}

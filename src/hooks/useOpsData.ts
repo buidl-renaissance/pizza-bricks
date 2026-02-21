@@ -86,7 +86,7 @@ export function useChannelStats() {
   return { data, loading, reload };
 }
 
-export function useActivityLog(opts: { type?: string; limit?: number } = {}) {
+export function useActivityLog(opts: { type?: string; triggeredBy?: 'agent' | 'manual' | 'system'; limit?: number } = {}) {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,12 +95,13 @@ export function useActivityLog(opts: { type?: string; limit?: number } = {}) {
     try {
       const params = new URLSearchParams();
       if (opts.type) params.set('type', opts.type);
+      if (opts.triggeredBy) params.set('triggeredBy', opts.triggeredBy);
       if (opts.limit) params.set('limit', String(opts.limit));
       const d = await apiFetch<{ events: ActivityEvent[] }>(`/api/ops/activity?${params}`);
       setEvents(d.events);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [opts.type, opts.limit]);
+  }, [opts.type, opts.triggeredBy, opts.limit]);
 
   useEffect(() => { reload(); }, [reload]);
   return { events, loading, reload };
@@ -224,21 +225,4 @@ export function useSiteStatus(siteId: string | null, intervalMs = 5000) {
   }, [siteId, poll]);
 
   return { site, loading };
-}
-
-export function useActionHistory() {
-  const [events, setEvents] = useState<ActivityEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const d = await apiFetch<{ events: ActivityEvent[] }>('/api/ops/actions/history');
-      setEvents(d.events);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
-  return { events, loading, reload };
 }
