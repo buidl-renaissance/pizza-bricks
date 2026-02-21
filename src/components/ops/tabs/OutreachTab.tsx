@@ -23,6 +23,9 @@ export interface VendorResult {
   recentPosts: string | null;
   status: string;
   notes: string | null;
+  /** Resend delivery status for latest sent outreach (sent | delivered | bounced | failed | delivery_delayed) */
+  deliveryStatus?: string | null;
+  deliveryStatusAt?: string | null;
 }
 
 export interface DraftPreview {
@@ -101,20 +104,14 @@ export function OutreachTab() {
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('food truck');
   const [error, setError] = useState<string | null>(null);
-  const [gmailAccount, setGmailAccount] = useState<string | null>(null);
+  const [resendConfigured, setResendConfigured] = useState<boolean | null>(null);
 
-  // Handle Gmail OAuth callback redirect
   useEffect(() => {
-    if (router.query.gmail_auth === 'success') {
-      const account = router.query.account as string;
-      setGmailAccount(account || 'Connected');
-      setError(null);
-      router.replace(OUTREACH_PATH, undefined, { shallow: true });
-    } else if (router.query.gmail_auth === 'error') {
-      setError(`Gmail auth failed: ${router.query.reason || 'Unknown error'}`);
-      router.replace(OUTREACH_PATH, undefined, { shallow: true });
-    }
-  }, [router]);
+    fetch('/api/auth/resend/status')
+      .then((r) => r.json())
+      .then((d) => setResendConfigured(d.configured === true))
+      .catch(() => setResendConfigured(false));
+  }, []);
   const [sourceInfo, setSourceInfo] = useState<{
     google: number;
     googleError: string | null;
@@ -138,19 +135,27 @@ export function OutreachTab() {
     setSendingEmail(true);
     setSendResult(null);
     try {
-      const checkRes = await fetch('/api/auth/gmail/status');
-      const checkData = await checkRes.json();
+      const res = await fetch('/api/outreach/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailId: draftPreview.emailId }),
+      });
+      const data = await res.json();
 
-      if (!checkData.connected) {
-        window.location.href = '/api/auth/gmail';
+      if (res.status === 401 && data.code === 'RESEND_NOT_CONFIGURED') {
+        setSendResult({ success: false, message: 'Resend is not configured. Set RESEND_API_KEY.' });
+        setSendingEmail(false);
         return;
       }
 
-      setSendResult({ success: true, message: `Gmail connected as ${checkData.account} — sending not yet enabled` });
-      setGmailAccount(checkData.account);
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+
+      setSendResult({ success: true, message: `Sent to ${data.sentTo}` });
       setSendConfirm(false);
+      setDraftPreview(null);
+      setTimeout(() => setSendResult(null), 2000);
     } catch (err) {
-      setSendResult({ success: false, message: err instanceof Error ? err.message : 'Check failed' });
+      setSendResult({ success: false, message: err instanceof Error ? err.message : 'Send failed' });
     } finally {
       setSendingEmail(false);
     }
@@ -299,17 +304,11 @@ export function OutreachTab() {
           <div>
             <Subtitle>Discover local businesses and initiate outreach campaigns</Subtitle>
           </div>
-          {gmailAccount ? (
-            <GmailBadge $connected>Gmail: {gmailAccount}</GmailBadge>
-          ) : (
-            <GmailBadge
-              as="a"
-              href="/api/auth/gmail"
-              $connected={false}
-            >
-              Connect Gmail
-            </GmailBadge>
-          )}
+          {resendConfigured === true ? (
+            <EmailBadge $connected>Email via Resend</EmailBadge>
+          ) : resendConfigured === false ? (
+            <EmailBadge $connected={false}>Resend not configured</EmailBadge>
+          ) : null}
         </HeaderRow>
       </Header>
 
@@ -648,7 +647,7 @@ const HeaderRow = styled.div`
   gap: 16px;
 `;
 
-const GmailBadge = styled.span<{ $connected: boolean }>`
+const EmailBadge = styled.span<{ $connected: boolean }>`
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;

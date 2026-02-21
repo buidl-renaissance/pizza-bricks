@@ -162,6 +162,9 @@ export const vendors = sqliteTable('vendors', {
 export const EMAIL_STATUSES = ['draft', 'sent', 'bounced'] as const;
 export type OutreachEmailStatus = typeof EMAIL_STATUSES[number];
 
+/** Resend send-event delivery status (from webhook email.sent / delivered / bounced / failed) */
+export type OutreachDeliveryStatus = 'sent' | 'delivered' | 'bounced' | 'failed' | 'delivery_delayed';
+
 // Outreach emails table — log of drafted and sent emails
 export const outreachEmails = sqliteTable('outreach_emails', {
   id: text('id').primaryKey(),
@@ -169,9 +172,16 @@ export const outreachEmails = sqliteTable('outreach_emails', {
   subject: text('subject').notNull(),
   bodyHtml: text('bodyHtml').notNull(),
   status: text('status').$type<OutreachEmailStatus>().default('draft').notNull(),
-  gmailMessageId: text('gmailMessageId'), // set after successful send
-  gmailThreadId: text('gmailThreadId'),   // Gmail thread ID — used to match replies
+  gmailMessageId: text('gmailMessageId'), // legacy: set after Gmail send
+  gmailThreadId: text('gmailThreadId'),   // legacy: Gmail thread ID
+  resendMessageId: text('resendMessageId'), // Resend send response id
+  sentRfcMessageId: text('sentRfcMessageId'), // Message-ID we set when sending — for In-Reply-To matching
   sentAt: integer('sentAt', { mode: 'timestamp' }),
+  /** Delivery status from Resend webhook (email.sent, email.delivered, email.bounced, etc.) */
+  deliveryStatus: text('deliveryStatus').$type<OutreachDeliveryStatus>(),
+  deliveryStatusAt: integer('deliveryStatusAt', { mode: 'timestamp' }),
+  /** Optional detail for bounce/failure (e.g. bounce message or failure reason) */
+  deliveryDetails: text('deliveryDetails'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
 });
 
@@ -180,13 +190,14 @@ export const outreachEmails = sqliteTable('outreach_emails', {
 // AI interest analysis result
 export type ReplyIntent = 'interested' | 'not_interested' | 'needs_follow_up' | 'unclear';
 
-// email_replies — vendor responses captured from Gmail inbox polling
+// email_replies — vendor responses (from Gmail polling or Resend inbound webhook)
 export const emailReplies = sqliteTable('email_replies', {
   id: text('id').primaryKey(),
   outreachEmailId: text('outreachEmailId').references(() => outreachEmails.id),
   vendorId: text('vendorId').notNull().references(() => vendors.id),
-  gmailMessageId: text('gmailMessageId').unique().notNull(),
-  gmailThreadId: text('gmailThreadId').notNull(),
+  gmailMessageId: text('gmailMessageId').unique(), // legacy: Gmail message id (null for Resend-sourced)
+  gmailThreadId: text('gmailThreadId'),   // legacy: Gmail thread id
+  resendMessageId: text('resendMessageId').unique(), // Resend received email id (for Resend-sourced)
   // RFC 2822 Message-ID header (e.g. "<CABcde...@mail.gmail.com>") — used for In-Reply-To / References
   rfcMessageId: text('rfcMessageId'),
   fromEmail: text('fromEmail').notNull(),

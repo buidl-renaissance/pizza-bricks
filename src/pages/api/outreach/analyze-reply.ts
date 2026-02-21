@@ -3,7 +3,7 @@ import { eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { emailReplies, vendorOnboardings, vendors, outreachEmails } from '@/db/schema';
 import { analyzeReplyIntent } from '@/lib/ai';
-import { sendEmail, isGmailConfigured, getSenderEmail } from '@/lib/gmail';
+import { sendOutreachEmail, isResendConfigured } from '@/lib/resend-outreach';
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -106,7 +106,7 @@ The Pizza Bricks Team</p>
  * Body: { replyId } | { analyzeAll: true }
  *
  * 1. Classifies each reply with Claude
- * 2. Sends an auto-reply in the same Gmail thread:
+ * 2. Sends an auto-reply via Resend (In-Reply-To/References for threading):
  *    - interested      → onboarding link + prospect code
  *    - not_interested  → warm thank-you
  *    - needs_follow_up → ask for more info
@@ -131,8 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ processed: 0, results: [] });
   }
 
-  const gmailReady = isGmailConfigured();
-  const senderEmail = gmailReady ? await getSenderEmail() : null;
+  const resendReady = isResendConfigured();
   const results = [];
 
   for (const reply of toProcess) {
@@ -169,6 +168,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     const toEmail = reply.fromEmail.match(/<(.+)>/)?.[1] || reply.fromEmail;
+    const inReplyTo = reply.rfcMessageId ?? reply.gmailMessageId ?? undefined;
+    const references = [originalEmail?.sentRfcMessageId, inReplyTo].filter(Boolean).join(' ');
 
     // ── Interested ────────────────────────────────────────────────────────────
     if (analysis.intent === 'interested') {
@@ -208,18 +209,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       result.prospectCode = prospectCode;
 
-      if (gmailReady && senderEmail) {
+      if (resendReady) {
         try {
           const { subject, bodyHtml } = buildInterestedReply(
             vendor.name, prospectCode, onboardingToken, originalEmail?.subject || null
           );
 
-          const { messageId, threadId } = await sendEmail({
+          const { resendId } = await sendOutreachEmail({
             to: toEmail,
             subject,
             bodyHtml,
-            threadId: reply.gmailThreadId,
-            inReplyTo: reply.rfcMessageId ?? reply.gmailMessageId,
+            inReplyTo,
+            references,
           });
 
           await db.insert(outreachEmails).values({
@@ -228,8 +229,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             subject,
             bodyHtml,
             status: 'sent',
-            gmailMessageId: messageId,
-            gmailThreadId: threadId,
+            resendMessageId: resendId,
             sentAt: new Date(),
           } as typeof outreachEmails.$inferInsert);
 
@@ -240,7 +240,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           result.autoReplySent = true;
           result.followUpSent = true;
           result.sentTo = toEmail;
-          console.log(`[interested] Auto-reply sent to ${toEmail} in thread ${reply.gmailThreadId}`);
+          console.log(`[interested] Auto-reply sent to ${toEmail}`);
         } catch (err) {
           console.error('Failed to send interested reply:', err);
           result.autoReplyError = err instanceof Error ? err.message : String(err);
@@ -253,18 +253,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── Not interested ────────────────────────────────────────────────────────
     } else if (analysis.intent === 'not_interested') {
-      if (gmailReady) {
+      if (resendReady) {
         try {
           const { subject, bodyHtml } = buildNotInterestedReply(
             vendor.name, originalEmail?.subject || null
           );
 
-          const { messageId, threadId } = await sendEmail({
+          const { resendId } = await sendOutreachEmail({
             to: toEmail,
             subject,
             bodyHtml,
-            threadId: reply.gmailThreadId,
-            inReplyTo: reply.rfcMessageId ?? reply.gmailMessageId,
+            inReplyTo,
+            references,
           });
 
           await db.insert(outreachEmails).values({
@@ -273,8 +273,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             subject,
             bodyHtml,
             status: 'sent',
-            gmailMessageId: messageId,
-            gmailThreadId: threadId,
+            resendMessageId: resendId,
             sentAt: new Date(),
           } as typeof outreachEmails.$inferInsert);
 
@@ -293,18 +292,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // ── Needs follow-up ───────────────────────────────────────────────────────
     } else if (analysis.intent === 'needs_follow_up') {
-      if (gmailReady) {
+      if (resendReady) {
         try {
           const { subject, bodyHtml } = buildFollowUpReply(
             vendor.name, originalEmail?.subject || null
           );
 
-          const { messageId, threadId } = await sendEmail({
+          const { resendId } = await sendOutreachEmail({
             to: toEmail,
             subject,
             bodyHtml,
-            threadId: reply.gmailThreadId,
-            inReplyTo: reply.rfcMessageId ?? reply.gmailMessageId,
+            inReplyTo,
+            references,
           });
 
           await db.insert(outreachEmails).values({
@@ -313,8 +312,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             subject,
             bodyHtml,
             status: 'sent',
-            gmailMessageId: messageId,
-            gmailThreadId: threadId,
+            resendMessageId: resendId,
             sentAt: new Date(),
           } as typeof outreachEmails.$inferInsert);
 

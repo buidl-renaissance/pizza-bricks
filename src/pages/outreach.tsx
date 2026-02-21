@@ -12,7 +12,14 @@ export default function OutreachPage() {
   const [keyword, setKeyword] = useState('food truck');
   const [demoOnly, setDemoOnly] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gmailAccount, setGmailAccount] = useState<string | null>(null);
+  const [resendConfigured, setResendConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/resend/status')
+      .then((r) => r.json())
+      .then((d) => setResendConfigured(d.configured === true))
+      .catch(() => setResendConfigured(false));
+  }, []);
 
   // Inbox / reply processing state
   const [checkingReplies, setCheckingReplies] = useState(false);
@@ -48,8 +55,9 @@ export default function OutreachPage() {
       });
       const data = await res.json();
 
-      if (res.status === 401 && data.code === 'GMAIL_NOT_CONFIGURED') {
-        window.location.href = '/api/auth/gmail';
+      if (res.status === 401 && data.code === 'RESEND_NOT_CONFIGURED') {
+        setSendResult({ success: false, message: 'Resend is not configured. Set RESEND_API_KEY.' });
+        setSendingEmail(false);
         return;
       }
 
@@ -129,8 +137,9 @@ export default function OutreachPage() {
       });
       const sendData = await sendRes.json();
 
-      if (sendRes.status === 401 && sendData.code === 'GMAIL_NOT_CONFIGURED') {
-        window.location.href = '/api/auth/gmail';
+      if (sendRes.status === 401 && sendData.code === 'RESEND_NOT_CONFIGURED') {
+        setError('Resend is not configured. Set RESEND_API_KEY.');
+        setQuickSendingId(null);
         return;
       }
       if (!sendRes.ok) throw new Error(sendData.error || 'Send failed');
@@ -277,17 +286,11 @@ export default function OutreachPage() {
             <Title>Vendor Outreach</Title>
             <Subtitle>Discover local businesses and initiate outreach campaigns</Subtitle>
           </div>
-          {gmailAccount ? (
-            <GmailBadge $connected>Gmail: {gmailAccount}</GmailBadge>
-          ) : (
-            <GmailBadge
-              as="a"
-              href="/api/auth/gmail"
-              $connected={false}
-            >
-              Connect Gmail
-            </GmailBadge>
-          )}
+          {resendConfigured === true ? (
+            <EmailBadge $connected>Email via Resend</EmailBadge>
+          ) : resendConfigured === false ? (
+            <EmailBadge $connected={false}>Resend not configured</EmailBadge>
+          ) : null}
         </HeaderRow>
       </Header>
 
@@ -559,7 +562,17 @@ export default function OutreachPage() {
                       {isDrafting ? 'Drafting...' : 'Preview Draft'}
                     </DraftButton>
                     {isContacted ? (
-                      <SentBadge>✓ Sent</SentBadge>
+                      <SentBadge $status={vendor.deliveryStatus ?? 'sent'}>
+                        {vendor.deliveryStatus === 'delivered'
+                          ? '✓ Delivered'
+                          : vendor.deliveryStatus === 'bounced'
+                            ? 'Bounced'
+                            : vendor.deliveryStatus === 'failed'
+                              ? 'Failed'
+                              : vendor.deliveryStatus === 'delivery_delayed'
+                                ? 'Delayed'
+                                : '✓ Sent'}
+                      </SentBadge>
                     ) : vendor.email ? (
                       <CampaignButton
                         onClick={() => handleQuickSend(vendor)}
@@ -683,7 +696,7 @@ const HeaderRow = styled.div`
   gap: 16px;
 `;
 
-const GmailBadge = styled.span<{ $connected: boolean }>`
+const EmailBadge = styled.span<{ $connected: boolean }>`
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
@@ -1448,16 +1461,23 @@ const CampaignButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
-const SentBadge = styled.div`
+const SentBadge = styled.div<{ $status?: string }>`
   flex: 1;
   padding: 10px;
   border-radius: ${p => p.theme.borderRadius};
   font-size: 0.85rem;
   font-weight: 600;
   text-align: center;
-  background: rgba(16, 185, 129, 0.1);
-  color: #10B981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  ${p => {
+    const s = p.$status ?? 'sent';
+    if (s === 'bounced' || s === 'failed') {
+      return 'background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25);';
+    }
+    if (s === 'delivery_delayed') {
+      return 'background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.25);';
+    }
+    return 'background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.25);';
+  }}
 `;
 
 const fadeIn = keyframes`

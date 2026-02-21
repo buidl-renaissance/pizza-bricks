@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { vendors, outreachEmails } from '@/db/schema';
 import { getOrCreateProspectFromVendor, updateProspectStage, insertActivityEvent } from '@/db/ops';
-import { sendEmail, isGmailConfigured } from '@/lib/gmail';
+import { sendOutreachEmail, isResendConfigured } from '@/lib/resend-outreach';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -16,8 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'emailId is required' });
     }
 
-    if (!isGmailConfigured()) {
-      return res.status(401).json({ code: 'GMAIL_NOT_CONFIGURED', error: 'Gmail not connected' });
+    if (!isResendConfigured()) {
+      return res.status(401).json({ code: 'RESEND_NOT_CONFIGURED', error: 'Resend not configured' });
     }
 
     const db = getDb();
@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (email.status === 'sent') {
-      return res.status(400).json({ error: 'Email already sent', gmailMessageId: email.gmailMessageId });
+      return res.status(400).json({ error: 'Email already sent', resendMessageId: email.resendMessageId });
     }
 
     const vendor = await db.select().from(vendors)
@@ -46,17 +46,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: `No email address on file for ${vendor.name}` });
     }
 
-    const { messageId, threadId } = await sendEmail({
+    const { resendId, messageId: sentRfcMessageId } = await sendOutreachEmail({
       to: vendor.email,
       subject: email.subject,
       bodyHtml: email.bodyHtml,
     });
 
+    const now = new Date();
     await db.update(outreachEmails).set({
       status: 'sent',
-      gmailMessageId: messageId,
-      gmailThreadId: threadId,
-      sentAt: new Date(),
+      resendMessageId: resendId,
+      sentRfcMessageId: sentRfcMessageId ?? null,
+      sentAt: now,
+      deliveryStatus: 'sent',
+      deliveryStatusAt: now,
     }).where(eq(outreachEmails.id, emailId));
 
     await db.update(vendors).set({
@@ -78,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       success: true,
-      messageId,
+      messageId: resendId,
       sentTo: vendor.email,
     });
   } catch (err) {

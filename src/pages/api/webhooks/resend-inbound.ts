@@ -1,6 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { Resend } from 'resend';
+import { eq } from 'drizzle-orm';
+import { getDb } from '@/db/drizzle';
+import { emailReplies, vendors, outreachEmails } from '@/db/schema';
+import type { OutreachDeliveryStatus } from '@/db/schema';
+import { findOutreachEmailForInboundReply } from '@/db/outreach';
 import { matchAndProcessReply } from '@/lib/agent/workflows/reply-intent';
+
+const SEND_EVENT_TYPES: Record<string, OutreachDeliveryStatus> = {
+  'email.sent': 'sent',
+  'email.delivered': 'delivered',
+  'email.bounced': 'bounced',
+  'email.failed': 'failed',
+  'email.delivery_delayed': 'delivery_delayed',
+};
 
 export const config = {
   api: { bodyParser: false },
@@ -35,7 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const resend = new Resend(apiKey);
-  let event: { type: string; data: { email_id: string } };
+  type ResendEvent = {
+    type: string;
+    data?: { email_id?: string; created_at?: string; bounce?: { message?: string }; failed?: { reason?: string } };
+  };
+  let event: ResendEvent;
   try {
     event = resend.webhooks.verify({
       payload: rawBody,
@@ -45,14 +62,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         signature: (req.headers['svix-signature'] as string) ?? '',
       },
       webhookSecret,
-    }) as { type: string; data: { email_id: string } };
+    }) as ResendEvent;
   } catch (err) {
     console.error('[resend-inbound] Webhook verification failed:', err);
     return res.status(400).json({ error: 'Invalid signature' });
   }
 
+  const deliveryStatus = SEND_EVENT_TYPES[event.type];
+  if (deliveryStatus) {
+    const emailId = event.data?.email_id;
+    if (emailId) {
+      const db = getDb();
+      const rows = await db
+        .select({ id: outreachEmails.id })
+        .from(outreachEmails)
+        .where(eq(outreachEmails.resendMessageId, emailId))
+        .limit(1);
+      if (rows.length > 0) {
+        const details =
+          event.data?.bounce?.message ?? event.data?.failed?.reason ?? undefined;
+        const statusAt = event.data?.created_at ? new Date(event.data.created_at) : new Date();
+        await db
+          .update(outreachEmails)
+          .set({
+            deliveryStatus,
+            deliveryStatusAt: statusAt,
+            ...(details != null && details !== '' ? { deliveryDetails: details } : {}),
+          })
+          .where(eq(outreachEmails.id, rows[0].id));
+        return res.status(200).json({
+          received: true,
+          event: event.type,
+          outreachEmailId: rows[0].id,
+          deliveryStatus,
+        });
+      }
+    }
+    return res.status(200).json({ received: true, event: event.type });
+  }
+
   if (event.type !== 'email.received') {
-    return res.status(200).json({ received: true });
+    return res.status(200).json({ received: true, event: event.type });
   }
 
   const emailId = event.data?.email_id;
@@ -81,6 +131,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ received: true, matched: false, reason: 'empty body' });
   }
 
+  // First try to match to Vendor Outreach (outreach_emails / email_replies)
+  const outreachEmail = await findOutreachEmailForInboundReply({ from, subject, inReplyTo });
+  if (outreachEmail) {
+    const db = getDb();
+    const existing = await db
+      .select({ id: emailReplies.id })
+      .from(emailReplies)
+      .where(eq(emailReplies.resendMessageId, emailId))
+      .limit(1);
+    if (existing.length > 0) {
+      return res.status(200).json({ received: true, matched: true, source: 'outreach', duplicate: true });
+    }
+    const replyId = crypto.randomUUID();
+    const receivedAt = (email as { created_at?: string }).created_at
+      ? new Date((email as { created_at: string }).created_at)
+      : new Date();
+    await db.insert(emailReplies).values({
+      id: replyId,
+      outreachEmailId: outreachEmail.id,
+      vendorId: outreachEmail.vendorId,
+      resendMessageId: emailId,
+      fromEmail: from,
+      subject,
+      bodyText: body,
+      receivedAt,
+    });
+    await db
+      .update(vendors)
+      .set({ status: 'replied', updatedAt: new Date() })
+      .where(eq(vendors.id, outreachEmail.vendorId));
+    return res.status(200).json({
+      received: true,
+      matched: true,
+      source: 'outreach',
+      replyId,
+      outreachEmailId: outreachEmail.id,
+      vendorId: outreachEmail.vendorId,
+    });
+  }
+
+  // Else match to agent email_logs (prospects)
   const result = await matchAndProcessReply({
     from,
     to,

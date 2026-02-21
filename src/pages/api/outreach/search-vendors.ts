@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { eq, like } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { vendors } from '@/db/schema';
+import { getLatestOutreachDeliveryByVendorIds } from '@/db/outreach';
 import { geocodeLocation } from '@/lib/geocode';
 import { searchGooglePlaces, normalizeGooglePlace, isFoodVendor } from '@/lib/places';
 import { searchForEmail, searchForFacebookPage, searchForInstagram, searchForWebsite } from '@/lib/customSearch';
@@ -59,9 +60,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return parseFloat(b.rating || '0') - parseFloat(a.rating || '0');
       });
 
+      const deliveryByVendor = await getLatestOutreachDeliveryByVendorIds(demoVendors.map((v) => v.id));
+      const vendorsWithDelivery = demoVendors.map((v) => {
+        const d = deliveryByVendor[v.id];
+        return {
+          ...v,
+          ...(d && {
+            deliveryStatus: d.deliveryStatus,
+            deliveryStatusAt: d.deliveryStatusAt?.toISOString() ?? null,
+          }),
+        };
+      });
+
       return res.status(200).json({
-        vendors: demoVendors,
-        total: demoVendors.length,
+        vendors: vendorsWithDelivery,
+        total: vendorsWithDelivery.length,
         sources: { google: 0, googleError: null },
         enrichmentLogs: {},
         demoOnly: true,
@@ -275,13 +288,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return parseFloat(b.rating || '0') - parseFloat(a.rating || '0');
     });
 
+    // Attach latest outreach delivery status per vendor (for "Sent" / "Delivered" / "Bounced" badge)
+    const deliveryByVendor = await getLatestOutreachDeliveryByVendorIds(enriched.map((v) => v.id));
+    const vendorsWithDelivery = enriched.map((v) => {
+      const d = deliveryByVendor[v.id];
+      return {
+        ...v,
+        ...(d && {
+          deliveryStatus: d.deliveryStatus,
+          deliveryStatusAt: d.deliveryStatusAt?.toISOString() ?? null,
+        }),
+      };
+    });
+
     const sources = {
       google: allResults.length,
       googleError: null,
     };
 
     return res.status(200).json({
-      vendors: enriched,
+      vendors: vendorsWithDelivery,
       total: enriched.length,
       sources,
       enrichmentLogs,

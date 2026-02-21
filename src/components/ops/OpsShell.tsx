@@ -10,6 +10,7 @@ const SIDEBAR_NARROW_WIDTH = 56;
 // Lazy-load tab components
 const OverviewTab = dynamic(() => import('./tabs/OverviewTab').then(m => ({ default: m.OverviewTab })), { ssr: false });
 const PipelineTab = dynamic(() => import('./tabs/PipelineTab').then(m => ({ default: m.PipelineTab })), { ssr: false });
+const ProspectsTab = dynamic(() => import('./tabs/ProspectsTab').then(m => ({ default: m.ProspectsTab })), { ssr: false });
 const ChannelsTab = dynamic(() => import('./tabs/ChannelsTab').then(m => ({ default: m.ChannelsTab })), { ssr: false });
 const ActivityTab = dynamic(() => import('./tabs/ActivityTab').then(m => ({ default: m.ActivityTab })), { ssr: false });
 const OutreachTab = dynamic(() => import('./tabs/OutreachTab').then(m => ({ default: m.OutreachTab })), { ssr: false });
@@ -25,6 +26,7 @@ type NavGroup = { id: string; label: string; icon: string; tabs: readonly Tab[] 
 const TOP_LEVEL_TABS: readonly Tab[] = [
   { id: 'overview', label: 'Overview', icon: '📊' },
   { id: 'pipeline', label: 'Pipeline', icon: '🔀' },
+  { id: 'prospects', label: 'Prospects', icon: '📇' },
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
   { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
@@ -524,7 +526,7 @@ export function OpsShell() {
       )}
 
       <Content
-        $fullWidth={activeTab === 'pipeline' || activeTab === 'campaigns-outreach' || activeTab === 'campaigns-events'}
+        $fullWidth={activeTab === 'pipeline' || activeTab === 'prospects' || activeTab === 'campaigns-outreach' || activeTab === 'campaigns-events'}
         $narrow={isNarrow}
       >
         <ContentHeader>
@@ -533,6 +535,7 @@ export function OpsShell() {
 
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'pipeline' && <PipelineTab />}
+        {activeTab === 'prospects' && <ProspectsTab />}
         {activeTab === 'channels' && <ChannelsTab />}
         {activeTab === 'activity' && <ActivityTab />}
         {activeTab === 'campaigns-outreach' && <OutreachTab />}

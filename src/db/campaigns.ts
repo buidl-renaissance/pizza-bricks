@@ -9,6 +9,8 @@ import {
   campaignAssets,
   campaignOutreach,
   campaignAnalytics,
+  vendors,
+  prospects,
 } from './schema';
 import type {
   CampaignType,
@@ -149,6 +151,68 @@ export async function getCampaignEventByCampaignId(campaignId: string) {
   return rows[0];
 }
 
+/** Derive campaign city from metadata, linked vendor address, or linked prospect city. */
+export async function getCampaignCity(campaignId: string): Promise<string | null> {
+  const campaign = await getCampaign(campaignId);
+  if (!campaign) return null;
+  const meta = campaign.metadata ? (JSON.parse(campaign.metadata) as Record<string, unknown>) : null;
+  const metaCity = meta && typeof meta.city === 'string' ? meta.city.trim() : null;
+  if (metaCity) return metaCity;
+  const db = getDb();
+  if (campaign.vendorId) {
+    const rows = await db.select({ address: vendors.address }).from(vendors).where(eq(vendors.id, campaign.vendorId)).limit(1);
+    const addr = rows[0]?.address;
+    if (addr) {
+      const parts = addr.split(',').map((s: string) => s.trim());
+      if (parts.length >= 2) return parts[parts.length - 2];
+    }
+  }
+  if (campaign.prospectId) {
+    const rows = await db.select({ city: prospects.city }).from(prospects).where(eq(prospects.id, campaign.prospectId)).limit(1);
+    const city = rows[0]?.city;
+    if (city) return city;
+  }
+  return null;
+}
+
+/** Contributors eligible for a campaign: have email, optional city match, not already invited/outreach. */
+export async function listContributorsForCampaign(campaignId: string): Promise<Contributor[]> {
+  const db = getDb();
+  const campaignCity = await getCampaignCity(campaignId);
+  const all = await db.select().from(contributors)
+    .orderBy(desc(contributors.createdAt))
+    .limit(1000);
+  const withEmail = all.filter((c) => c.email && c.email.trim().length > 0);
+
+  const existingOutreach = await db.select({ contributorId: campaignOutreach.contributorId }).from(campaignOutreach)
+    .where(eq(campaignOutreach.campaignId, campaignId));
+  const existingInvites = await db.select({ contributorId: campaignContributorInvites.contributorId }).from(campaignContributorInvites)
+    .where(eq(campaignContributorInvites.campaignId, campaignId));
+  const excludedIds = new Set<string>();
+  for (const r of existingOutreach) {
+    if (r.contributorId) excludedIds.add(r.contributorId);
+  }
+  for (const r of existingInvites) {
+    excludedIds.add(r.contributorId);
+  }
+
+  const eligible = withEmail.filter((c) => {
+    if (excludedIds.has(c.id)) return false;
+    if (!campaignCity) return true;
+    if (!c.metadata) return false;
+    try {
+      const meta = JSON.parse(c.metadata) as Record<string, unknown>;
+      const city = meta?.city;
+      if (typeof city !== 'string') return false;
+      return city.trim().toLowerCase() === campaignCity.trim().toLowerCase();
+    } catch {
+      return false;
+    }
+  });
+
+  return eligible;
+}
+
 // ── Contributors ──────────────────────────────────────────────────────────────
 export async function insertContributor(data: {
   vendorId?: string;
@@ -270,7 +334,7 @@ export async function insertCampaignOutreach(data: {
   subject?: string;
   bodyHtml?: string;
   bodyText?: string;
-}) {
+}): Promise<string> {
   const db = getDb();
   const id = uuidv4();
   await db.insert(campaignOutreach).values({
@@ -285,6 +349,28 @@ export async function insertCampaignOutreach(data: {
     bodyText: data.bodyText ?? null,
   });
   return id;
+}
+
+export async function getCampaignOutreach(id: string) {
+  const db = getDb();
+  const rows = await db.select().from(campaignOutreach).where(eq(campaignOutreach.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updateCampaignOutreach(
+  id: string,
+  data: Partial<{ status: OutreachStatus; sentAt: Date }>
+) {
+  const db = getDb();
+  const update: Record<string, unknown> = { updatedAt: new Date(), ...data };
+  await db.update(campaignOutreach).set(update).where(eq(campaignOutreach.id, id));
+}
+
+export async function listCampaignOutreachByCampaign(campaignId: string) {
+  const db = getDb();
+  return db.select().from(campaignOutreach)
+    .where(eq(campaignOutreach.campaignId, campaignId))
+    .orderBy(desc(campaignOutreach.createdAt));
 }
 
 // ── Campaign Analytics ────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ import {
 import { inferMenuItems, draftOutreachEmail, type MenuItem } from '@/lib/anthropic';
 import { searchForMenuItems } from '@/lib/customSearch';
 import { recordAgenticCost } from '@/lib/agentic-cost';
-import { sendEmail, isGmailConfigured } from '@/lib/gmail';
+import { sendOutreachEmail, isResendConfigured } from '@/lib/resend-outreach';
 
 export type TriggerResult = { sent: boolean; error?: string };
 
@@ -28,8 +28,8 @@ export async function triggerOutreachEmailForPublishedSite(
   prospectId: string,
   siteUrl: string
 ): Promise<TriggerResult> {
-  if (!isGmailConfigured()) {
-    return { sent: false, error: 'Gmail not configured' };
+  if (!isResendConfigured()) {
+    return { sent: false, error: 'Resend not configured' };
   }
 
   const prospect = await getProspect(prospectId);
@@ -131,19 +131,22 @@ export async function triggerOutreachEmailForPublishedSite(
       bodyHtml,
     } as NewOutreachEmail);
 
-    const { messageId, threadId } = await sendEmail({
+    const { resendId, messageId: sentRfcMessageId } = await sendOutreachEmail({
       to: toEmail,
       subject,
       bodyHtml,
     });
 
+    const now = new Date();
     await db
       .update(outreachEmails)
       .set({
         status: 'sent',
-        gmailMessageId: messageId,
-        gmailThreadId: threadId,
-        sentAt: new Date(),
+        resendMessageId: resendId,
+        sentRfcMessageId: sentRfcMessageId ?? null,
+        sentAt: now,
+        deliveryStatus: 'sent',
+        deliveryStatusAt: now,
       })
       .where(eq(outreachEmails.id, emailId));
 
