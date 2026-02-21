@@ -33,7 +33,7 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
       {
         type: 'https',
         endpoint: `${host}/api/campaigns/:id/activate`,
-        description: 'x402-protected campaign deployment — $0.25 USDC on Base per campaign activation (POST)',
+        description: 'x402-protected campaign deployment — $1.00 USDC on Base per campaign activation (POST)',
       },
       {
         type: 'https',

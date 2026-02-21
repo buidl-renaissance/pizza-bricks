@@ -22,7 +22,7 @@ export const middleware = paymentMiddleware(
       },
     },
     '/api/campaigns/[id]/activate': {
-      price: '$0.25',
+      price: '$1.00',
       network: 'base',
       config: {
         description: 'Pizza Bricks — campaign activation (deployment)',

@@ -8,6 +8,7 @@ import {
 } from '@/db/ops';
 import { runSitePipeline, deriveBiteBiteConfig } from '@/lib/site-pipeline';
 import { recordAgenticCost } from '@/lib/agentic-cost';
+import { triggerOutreachEmailForPublishedSite } from '@/lib/outreach-auto-send';
 
 /**
  * Start site generation for a prospect. Returns siteId immediately; pipeline runs in background.
@@ -78,6 +79,12 @@ export async function startSiteGenerationForProspect(prospectId: string): Promis
           triggeredBy: 'agent',
           metadata: { url: result.url, siteId: siteRecord.id },
         });
+        // Auto-send outreach email when site was built from Vendor Outreach (Prepare) flow
+        if (result.url) {
+          triggerOutreachEmailForPublishedSite(prospectId, result.url).then((r) => {
+            if (!r.sent && r.error) console.warn('[site-generation] Auto-send outreach:', r.error);
+          });
+        }
       }
     })
     .catch(async (err) => {

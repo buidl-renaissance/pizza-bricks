@@ -4,7 +4,7 @@ import { getCampaign, updateCampaign, insertCampaignEvent, getCampaignEventByCam
 import { insertActivityEvent } from '@/db/ops';
 
 /**
- * x402-protected campaign activation endpoint ($0.25 USDC on Base).
+ * x402-protected campaign activation endpoint ($1.00 USDC on Base).
  * Middleware in src/middleware.ts verifies payment before this handler runs.
  * Payment proof is set on the response header X-PAYMENT-RESPONSE.
  */

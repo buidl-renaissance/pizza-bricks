@@ -8,6 +8,7 @@ import {
   getProspect,
 } from '@/db/ops';
 import { getDeploymentStatus, getDeploymentBuildLogs } from '@/lib/vercel-deployer';
+import { triggerOutreachEmailForPublishedSite } from '@/lib/outreach-auto-send';
 import type { DeploymentStatus } from '@/lib/vercel-deployer';
 
 type SyncSummary = {
@@ -94,6 +95,16 @@ export default async function handler(
           triggeredBy: 'system',
           metadata: { url: url ?? deployment.url, siteId: site.id },
         });
+        // Auto-send outreach email when site was built from Vendor Outreach (Prepare) flow
+        if (url) {
+          triggerOutreachEmailForPublishedSite(site.prospectId, url).then((result) => {
+            if (result.sent) {
+              console.log(`[deployments/sync] Auto-sent outreach email for prospect ${site.prospectId}`);
+            } else if (result.error) {
+              console.warn(`[deployments/sync] Auto-send outreach skipped/failed: ${result.error}`);
+            }
+          });
+        }
         summary.updated += 1;
       } else if (deployment.readyState === 'ERROR' || deployment.readyState === 'CANCELED') {
         let buildErrorSummary = `Build ${deployment.readyState.toLowerCase()}`;
