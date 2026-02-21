@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireAdmin } from '@/lib/ops-auth';
+import { requireRead } from '@/lib/ops-auth';
 import { getDeploymentStatus, getDeploymentBuildLogs } from '@/lib/vercel-deployer';
 
 type LogsResponse = {
@@ -16,7 +16,7 @@ export default async function handler(
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  const auth = await requireAdmin(req, res);
+  const auth = await requireRead(req, res);
   if (!auth) return;
 
   const { deploymentId } = req.query as { deploymentId: string };

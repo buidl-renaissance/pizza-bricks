@@ -2,8 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuid } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
-import { vendors, outreachEmails } from '@/db/schema';
-import { inferMenuItems, draftOutreachEmail } from '@/lib/gemini';
+import { vendors, outreachEmails, type NewOutreachEmail } from '@/db/schema';
+import { inferMenuItems, draftOutreachEmail } from '@/lib/anthropic';
 import { searchForMenuItems } from '@/lib/customSearch';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -72,8 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       vendorId,
       subject,
       bodyHtml,
-      status: 'draft',
-    });
+    } as NewOutreachEmail);
 
     return res.status(200).json({
       emailId,

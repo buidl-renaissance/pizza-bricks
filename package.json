@@ -12,11 +12,14 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "gmail-setup": "npx tsx scripts/gmail-setup.ts",
-    "seed-demo": "npx tsx scripts/seed-demo-vendors.ts"
+    "seed-demo": "npx tsx scripts/seed-demo-vendors.ts",
+    "test-onboard": "npx tsx scripts/create-test-onboarding.ts",
+    "reset-demo": "npx tsx scripts/reset-demo-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@coinbase/onchainkit": "^1.1.2",
+    "@coinbase/x402": "^2.1.0",
     "@google/generative-ai": "^0.24.1",
     "@libsql/client": "^0.15.15",
     "@supabase/supabase-js": "^2.97.0",
@@ -33,11 +36,13 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "resend": "^6.9.2",
+    "solc": "^0.8.34",
     "styled-components": "^6.1.18",
-    "zod": "^4.3.6",
     "uuid": "^11.1.0",
     "viem": "^2.46.2",
-    "wagmi": "^2.19.5"
+    "wagmi": "^2.19.5",
+    "x402-next": "^1.1.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

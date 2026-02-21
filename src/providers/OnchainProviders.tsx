@@ -3,12 +3,12 @@
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 import { coinbaseWallet } from 'wagmi/connectors';
 import { OnchainKitProvider } from '@coinbase/onchainkit';
 
 const wagmiConfig = createConfig({
-  chains: [baseSepolia],
+  chains: [baseSepolia, base],
   connectors: [
     coinbaseWallet({
       appName: 'Pizza Bricks',
@@ -16,6 +16,7 @@ const wagmiConfig = createConfig({
     }),
   ],
   transports: {
+    [base.id]: http(),
     [baseSepolia.id]: http(),
   },
   ssr: true,
@@ -29,8 +30,9 @@ export function OnchainProviders({ children }: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <OnchainKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={baseSepolia}
+          chain={base}
           config={{
+            analytics: false,
             appearance: {
               mode: 'auto',
               theme: 'default',

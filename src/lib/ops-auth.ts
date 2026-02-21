@@ -9,6 +9,17 @@ type AdminUser = {
 };
 
 /**
+ * Allows all requests through — used for read-only public ops endpoints.
+ * Always returns a synthetic public user so callers don't need null-checks.
+ */
+export async function requireRead(
+  _req: NextApiRequest,
+  _res: NextApiResponse,
+): Promise<{ user: AdminUser }> {
+  return { user: { id: 'public', role: 'public', username: 'public' } };
+}
+
+/**
  * Checks that the incoming request has a valid admin session.
  * Returns { user } on success, or sends 401/403 and returns null.
  *

@@ -41,6 +41,28 @@ export default class MyDocument extends Document {
     return (
       <Html lang="en">
         <Head>
+          {/* Intercept console.error assignment so our filter wraps whatever Next.js installs */}
+          <script dangerouslySetInnerHTML={{ __html: `
+            (function() {
+              function isAnalyticsNoise(args) {
+                if (typeof args[0] === 'string' && args[0].indexOf('Analytics SDK') !== -1) return true;
+                for (var i = 0; i < args.length; i++) {
+                  if (args[i] && args[i].context === 'AnalyticsSDKApiError') return true;
+                }
+                return false;
+              }
+              var _current = console.error;
+              Object.defineProperty(console, 'error', {
+                configurable: true,
+                get: function() { return _current; },
+                set: function(fn) {
+                  _current = function() {
+                    if (!isAnalyticsNoise(arguments)) fn.apply(console, arguments);
+                  };
+                }
+              });
+            })();
+          ` }} />
           <link
             href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@400;500;600;700&family=Righteous&family=Permanent+Marker&family=Caveat:wght@400;500;600;700&display=swap"
             rel="stylesheet"

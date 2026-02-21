@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
-import { requireAdmin } from '@/lib/ops-auth';
+import { requireRead } from '@/lib/ops-auth';
 import { getRecentActivityEvents } from '@/db/ops';
 import { addSseClient, removeSseClient, sendSseEvent, sendSsePing } from '@/lib/sse-broadcast';
 
@@ -9,7 +9,7 @@ export const config = { api: { bodyParser: false } };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAdmin(req, res)) return;
+  if (!await requireRead(req, res)) return;
 
   const clientId = uuidv4();
 

@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireAdmin } from '@/lib/ops-auth';
+import { requireRead } from '@/lib/ops-auth';
 import { getProspect, updateProspectStage, insertActivityEvent } from '@/db/ops';
 import type { PipelineStage } from '@/db/schema';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!await requireAdmin(req, res)) return;
+  if (!await requireRead(req, res)) return;
   const { id } = req.query as { id: string };
 
   if (req.method === 'GET') {
