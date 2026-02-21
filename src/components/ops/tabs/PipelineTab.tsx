@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { useProspects, useSites } from '@/hooks/useOpsData';
 import type { PipelineStage } from '@/db/schema';
 import type { Prospect, GeneratedSite } from '@/db/ops';
@@ -136,7 +136,7 @@ const SiteStatusDot = styled.span<{ $status: string }>`
     $status === 'generating' ? theme.accent :
     $status === 'revision_requested' ? theme.danger :
     theme.warning};
-  ${({ $status }) => $status === 'generating' && `animation: ${spin} 1s linear infinite;`}
+  ${({ $status }) => $status === 'generating' && css`animation: ${spin} 1s linear infinite;`}
 `;
 
 const SiteStatusLabel = styled.span<{ $status: string }>`
@@ -377,7 +377,7 @@ export function PipelineTab() {
         <SyncDeployButton type="button" onClick={handleSyncDeployments} disabled={syncLoading}>
           {syncLoading ? 'Syncing…' : 'Sync deployment status'}
         </SyncDeployButton>
-        <OutreachLink href="/outreach">Discover & outreach</OutreachLink>
+        <OutreachLink href="/ops?tab=outreach">Discover & outreach</OutreachLink>
       </div>
     <Board>
       {STAGES.map(stage => {

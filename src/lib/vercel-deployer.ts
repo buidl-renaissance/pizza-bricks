@@ -183,3 +183,79 @@ export async function waitForDeployment(
     `Vercel deployment ${deploymentId} timed out after ${MAX_POLLS * INTERVAL_MS / 1000}s`
   );
 }
+
+// ── Fetch deployment source files (for prompt-based edits) ────────────────────
+
+export interface VercelFileNode {
+  name: string;
+  type: 'file' | 'directory';
+  uid?: string;
+  children?: VercelFileNode[];
+  contentType?: string;
+  mode?: string;
+}
+
+const SOURCE_EXTENSIONS = /\.(tsx?|jsx?|css|json)$/;
+const EXCLUDE_PATHS = /^(\.next|node_modules)/;
+
+function collectSourceFileUids(nodes: VercelFileNode[], basePath = ''): Array<{ path: string; uid: string }> {
+  const result: Array<{ path: string; uid: string }> = [];
+  for (const node of nodes) {
+    const path = basePath ? `${basePath}/${node.name}` : node.name;
+    if (EXCLUDE_PATHS.test(path)) continue;
+    if (node.type === 'file' && node.uid && SOURCE_EXTENSIONS.test(node.name)) {
+      result.push({ path, uid: node.uid });
+    }
+    if (node.type === 'directory' && node.children?.length) {
+      result.push(...collectSourceFileUids(node.children, path));
+    }
+  }
+  return result;
+}
+
+/**
+ * List deployment file tree. Only works for deployments created with the files key.
+ */
+export async function listDeploymentFiles(deploymentId: string): Promise<VercelFileNode[]> {
+  const res = await fetch(buildUrl(`/v6/deployments/${deploymentId}/files`), {
+    headers: buildHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Vercel listDeploymentFiles failed (${res.status}): ${err}`);
+  }
+  return res.json() as Promise<VercelFileNode[]>;
+}
+
+/**
+ * Get base64-encoded file content from a deployment.
+ */
+export async function getDeploymentFileContent(deploymentId: string, fileId: string): Promise<string> {
+  const res = await fetch(buildUrl(`/v8/deployments/${deploymentId}/files/${fileId}`), {
+    headers: buildHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Vercel getDeploymentFileContent failed (${res.status}): ${err}`);
+  }
+  const json = (await res.json()) as { content?: string };
+  const content = json?.content;
+  if (typeof content !== 'string') {
+    throw new Error('Vercel getDeploymentFileContent: missing content in response');
+  }
+  return Buffer.from(content, 'base64').toString('utf-8');
+}
+
+/**
+ * Fetch all source files from a deployment as GeneratedFile[].
+ */
+export async function fetchDeploymentSource(deploymentId: string): Promise<GeneratedFile[]> {
+  const tree = await listDeploymentFiles(deploymentId);
+  const entries = collectSourceFileUids(tree);
+  const files: GeneratedFile[] = [];
+  for (const { path, uid } of entries) {
+    const content = await getDeploymentFileContent(deploymentId, uid);
+    files.push({ path, content });
+  }
+  return files;
+}

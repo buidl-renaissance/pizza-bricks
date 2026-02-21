@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import Link from 'next/link';
 import styled, { keyframes, css } from 'styled-components';
 import type { EnrichedSite } from '@/hooks/useOpsData';
 import type { GeneratedSiteStatus } from '@/db/schema';
@@ -296,9 +297,14 @@ export function SiteStatusCard({ site, onRedeploy }: SiteStatusCardProps) {
       {site.url && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <UrlText>{site.url}</UrlText>
-          <ViewLink href={site.url} target="_blank" rel="noopener noreferrer">
-            View Site ↗
-          </ViewLink>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <ViewLink href={site.url} target="_blank" rel="noopener noreferrer">
+              View Site ↗
+            </ViewLink>
+            <SecondaryLink as={Link} href={`/ops/sites/${site.id}`}>
+              Edit with prompts
+            </SecondaryLink>
+          </div>
         </div>
       )}
 

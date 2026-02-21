@@ -10,6 +10,7 @@ const PipelineTab = dynamic(() => import('./tabs/PipelineTab').then(m => ({ defa
 const ChannelsTab = dynamic(() => import('./tabs/ChannelsTab').then(m => ({ default: m.ChannelsTab })), { ssr: false });
 const ActivityTab = dynamic(() => import('./tabs/ActivityTab').then(m => ({ default: m.ActivityTab })), { ssr: false });
 const ManualActionsTab = dynamic(() => import('./tabs/ManualActionsTab').then(m => ({ default: m.ManualActionsTab })), { ssr: false });
+const OutreachTab = dynamic(() => import('./tabs/OutreachTab').then(m => ({ default: m.OutreachTab })), { ssr: false });
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: '📊' },
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
   { id: 'actions', label: 'Actions', icon: '🖐' },
+  { id: 'outreach', label: 'Outreach', icon: '📤' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -152,20 +154,12 @@ export function OpsShell() {
               {tab.label}
             </NavItem>
           ))}
-          <NavItem
-            href="/outreach"
-            $active={false}
-            as={Link}
-          >
-            <NavIcon>📤</NavIcon>
-            Outreach
-          </NavItem>
         </NavList>
 
         <BackLink href="/dashboard">&larr; Dashboard</BackLink>
       </Sidebar>
 
-      <Content $fullWidth={activeTab === 'pipeline'}>
+      <Content $fullWidth={activeTab === 'pipeline' || activeTab === 'outreach'}>
         <ContentHeader>
           <TabTitle>{currentTab.label}</TabTitle>
         </ContentHeader>
@@ -175,6 +169,7 @@ export function OpsShell() {
         {activeTab === 'channels' && <ChannelsTab />}
         {activeTab === 'activity' && <ActivityTab />}
         {activeTab === 'actions' && <ManualActionsTab />}
+        {activeTab === 'outreach' && <OutreachTab />}
       </Content>
     </Shell>
   );
