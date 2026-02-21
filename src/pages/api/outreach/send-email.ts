@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { vendors, outreachEmails } from '@/db/schema';
+import { getOrCreateProspectFromVendor, updateProspectStage, insertActivityEvent } from '@/db/ops';
 import { sendEmail, isGmailConfigured } from '@/lib/gmail';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -61,6 +62,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: 'contacted',
       updatedAt: new Date(),
     }).where(eq(vendors.id, vendor.id));
+
+    const prospect = await getOrCreateProspectFromVendor(vendor);
+    await updateProspectStage(prospect.id, 'contacted');
+    await insertActivityEvent({
+      type: 'email_sent',
+      prospectId: prospect.id,
+      targetLabel: vendor.name,
+      detail: `Outreach email sent to ${vendor.email}`,
+      status: 'completed',
+      triggeredBy: 'manual',
+      metadata: { emailId, vendorId: vendor.id },
+    });
 
     return res.status(200).json({
       success: true,

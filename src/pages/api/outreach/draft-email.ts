@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { vendorId } = req.body;
+    const { vendorId, siteUrl } = req.body;
     if (!vendorId) {
       return res.status(400).json({ error: 'vendorId is required' });
     }
@@ -62,8 +62,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // Step 2: Draft the outreach email
-    const { subject, bodyHtml } = await draftOutreachEmail(vendor, menuItems);
+    // Step 2: Draft the outreach email (include siteUrl if provided)
+    const { subject, bodyHtml } = await draftOutreachEmail(vendor, menuItems, siteUrl || undefined);
 
     // Step 3: Save as draft in outreach_emails table
     const emailId = uuid();

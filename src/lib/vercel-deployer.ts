@@ -21,6 +21,8 @@ export interface VercelDeployment {
 export interface DeployOptions {
   name: string;
   files: GeneratedFile[];
+  /** Deploy to existing Vercel project by ID (reuses project instead of creating new) */
+  projectId?: string;
 }
 
 interface VercelFile {
@@ -112,7 +114,7 @@ async function disableProjectProtection(projectId: string): Promise<void> {
 export async function deployToVercel(
   options: DeployOptions
 ): Promise<VercelDeployment> {
-  const body = {
+  const body: Record<string, unknown> = {
     name: options.name,
     files: toVercelFiles(options.files),
     framework: 'nextjs',
@@ -121,6 +123,9 @@ export async function deployToVercel(
     },
     target: 'production',
   };
+  if (options.projectId) {
+    body.project = options.projectId;
+  }
 
   const res = await fetch(buildUrl('/v13/deployments'), {
     method: 'POST',

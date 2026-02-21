@@ -7,8 +7,9 @@ import {
   updateProspectStage,
   insertActivityEvent,
   findEmailLogForInboundReply,
+  getLatestPublishedSiteForProspect,
 } from '@/db/ops';
-import { generateSiteForProspect } from './site-generation';
+import { generateSiteForProspect, updateSiteForProspect } from './site-generation';
 
 export type ReplyIntent =
   | 'website_update'
@@ -22,14 +23,14 @@ export interface ParsedReplyIntent {
   details?: string;
 }
 
-const SYSTEM_PROMPT = `You are an assistant that classifies email reply intent from a prospect (e.g. a food vendor) who was contacted by Bricks about getting a free website and online ordering.
+const SYSTEM_PROMPT = `You are an assistant that classifies email reply intent from a prospect (a Detroit-area food vendor) who was contacted by Pizza Bricks. Pizza Bricks is a community initiative that offers local food vendors a free AI-generated website, inclusion in the Pizza Bricks community game, and a local marketing campaign.
 
 Classify the reply into exactly one intent using the classify_reply_intent tool:
-- website_update: they want to update their website, get a website, or have a site built/redesigned.
-- marketing_materials: they want additional marketing materials for a campaign (flyers, posters, assets, etc.).
-- event_influencer: they propose an event or want to recruit local influencers to generate buzz.
-- general_positive: they are interested or positive but no specific request above.
-- other: not interested, negative, or unclear.`;
+- website_update: they want a website built, want to see a site preview, or agree to get their free site generated.
+- marketing_materials: they want marketing campaign materials (flyers, posters, social assets, neighborhood promos, etc.).
+- event_influencer: they propose a local event, want to host a community game event, or want to recruit local influencers to generate buzz.
+- general_positive: they are interested or positive about Pizza Bricks but have no specific request from the above.
+- other: they are not interested, the reply is negative, or the intent is completely unclear.`;
 
 const INTENT_SCHEMA = {
   type: 'object' as const,
@@ -132,12 +133,17 @@ export async function processReply(
   let dispatched = false;
 
   switch (intent) {
-    case 'website_update':
-      generateSiteForProspect(prospectId).catch((err) => {
-        console.error('[reply-intent] generateSiteForProspect failed:', err);
+    case 'website_update': {
+      const existingSite = await getLatestPublishedSiteForProspect(prospectId);
+      const doWork = existingSite
+        ? () => updateSiteForProspect(prospectId, existingSite.id)
+        : () => generateSiteForProspect(prospectId);
+      doWork().catch((err) => {
+        console.error('[reply-intent] site update/generate failed:', err);
       });
       dispatched = true;
       break;
+    }
 
     case 'marketing_materials':
       await insertActivityEvent({

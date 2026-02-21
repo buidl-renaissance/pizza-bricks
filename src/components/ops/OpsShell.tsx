@@ -152,6 +152,14 @@ export function OpsShell() {
               {tab.label}
             </NavItem>
           ))}
+          <NavItem
+            href="/outreach"
+            $active={false}
+            as={Link}
+          >
+            <NavIcon>📤</NavIcon>
+            Outreach
+          </NavItem>
         </NavList>
 
         <BackLink href="/dashboard">&larr; Dashboard</BackLink>

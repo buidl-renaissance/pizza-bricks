@@ -41,9 +41,24 @@ export default async function handler(
     return res.status(404).json({ error: 'Prospect not found' });
   }
 
+  let existingProjectId: string | undefined;
+  if (site.metadata) {
+    try {
+      const meta = JSON.parse(site.metadata) as Record<string, unknown>;
+      existingProjectId = meta.vercelProjectId as string | undefined;
+    } catch {
+      /* ignore */
+    }
+  }
+
   try {
     const doc = buildProspectDocument(prospect);
-    const result = await runSitePipeline({ document: doc, waitForReady: false });
+    const result = await runSitePipeline({
+      document: doc,
+      waitForReady: false,
+      prospectId: site.prospectId,
+      ...(existingProjectId ? { existingProjectId } : {}),
+    });
     await updateGeneratedSite(siteId, {
       url: result.url,
       status: 'pending_review',

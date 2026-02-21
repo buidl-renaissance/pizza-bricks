@@ -19,6 +19,10 @@ export interface PipelineOptions {
   document: string;
   /** If true, polls Vercel until the deployment is READY or ERROR. Default: true */
   waitForReady?: boolean;
+  /** Prospect ID for stable project naming (first deploy) */
+  prospectId?: string;
+  /** Deploy to existing Vercel project (updates instead of creating new) */
+  existingProjectId?: string;
 }
 
 function slugify(name: string): string {
@@ -33,7 +37,7 @@ function slugify(name: string): string {
 export async function runSitePipeline(
   options: PipelineOptions
 ): Promise<PipelineResult> {
-  const { document, waitForReady = true } = options;
+  const { document, waitForReady = true, prospectId, existingProjectId } = options;
 
   // Step 1: Extract structured BrandBrief from raw text
   console.log('[pipeline] step 1/5 — extracting brand brief');
@@ -48,11 +52,16 @@ export async function runSitePipeline(
   const processedFiles = postProcess(generatedSite.files, { brief });
 
   // Step 4: Deploy to Vercel
-  const projectName = `pizzabox-${slugify(brief.business.name)}-${Date.now().toString(36)}`;
-  console.log(`[pipeline] step 4/5 — deploying as "${projectName}"`);
+  const projectName = existingProjectId
+    ? `pizzabox-${slugify(brief.business.name)}`
+    : prospectId
+      ? `pizzabox-${slugify(brief.business.name)}-${prospectId.slice(0, 8)}`
+      : `pizzabox-${slugify(brief.business.name)}-${Date.now().toString(36)}`;
+  console.log(`[pipeline] step 4/5 — deploying as "${projectName}"${existingProjectId ? ' (existing project)' : ''}`);
   const deployment = await deployToVercel({
     name: projectName,
     files: processedFiles,
+    ...(existingProjectId ? { projectId: existingProjectId } : {}),
   });
 
   // Step 5: Wait for deployment to be ready (optional)

@@ -3,15 +3,18 @@ import {
   updateGeneratedSite,
   insertActivityEvent,
   getProspect,
+  getGeneratedSite,
   updateProspectStage,
 } from '@/db/ops';
 import { runSitePipeline } from '@/lib/site-pipeline';
 
-export async function generateSiteForProspect(prospectId: string): Promise<void> {
+/**
+ * Start site generation for a prospect. Returns siteId immediately; pipeline runs in background.
+ */
+export async function startSiteGenerationForProspect(prospectId: string): Promise<string> {
   const prospect = await getProspect(prospectId);
   if (!prospect) throw new Error(`Prospect ${prospectId} not found`);
 
-  // Create a pending site record
   const siteRecord = await insertGeneratedSite({
     prospectId,
     status: 'generating',
@@ -29,41 +32,116 @@ export async function generateSiteForProspect(prospectId: string): Promise<void>
     metadata: { siteId: siteRecord.id },
   });
 
-  // Build a synthetic document for the pipeline
   const doc = buildProspectDocument(prospect);
 
-  try {
-    const result = await runSitePipeline({ document: doc, waitForReady: false });
+  runSitePipeline({
+    document: doc,
+    waitForReady: false,
+    prospectId,
+  })
+    .then(async (result) => {
+      await updateGeneratedSite(siteRecord.id, {
+        url: result.url,
+        status: result.status === 'READY' ? 'published' : 'pending_review',
+        publishedAt: result.status === 'READY' ? new Date() : undefined,
+        metadata: { deploymentId: result.deploymentId, vercelProjectId: result.projectId },
+      });
+      if (result.status === 'READY') {
+        await updateProspectStage(prospectId, 'onboarding');
+        await insertActivityEvent({
+          type: 'site_published',
+          prospectId,
+          targetLabel: prospect.name,
+          detail: `Site published at ${result.url}`,
+          status: 'completed',
+          triggeredBy: 'agent',
+          metadata: { url: result.url, siteId: siteRecord.id },
+        });
+      }
+    })
+    .catch(async (err) => {
+      await updateGeneratedSite(siteRecord.id, { status: 'revision_requested' });
+      await insertActivityEvent({
+        type: 'agent_error',
+        prospectId,
+        targetLabel: prospect.name,
+        detail: `Site generation failed: ${err instanceof Error ? err.message : String(err)}`,
+        status: 'failed',
+        triggeredBy: 'agent',
+        metadata: { siteId: siteRecord.id },
+      });
+    });
 
-    await updateGeneratedSite(siteRecord.id, {
+  return siteRecord.id;
+}
+
+/** Generate site for prospect (fire-and-forget; returns siteId once record is created). */
+export async function generateSiteForProspect(prospectId: string): Promise<string> {
+  return startSiteGenerationForProspect(prospectId);
+}
+
+/** Update an existing site for a prospect (redeploy to same Vercel project). */
+export async function updateSiteForProspect(prospectId: string, siteId: string): Promise<void> {
+  const prospect = await getProspect(prospectId);
+  const site = await getGeneratedSite(siteId);
+  if (!prospect) throw new Error(`Prospect ${prospectId} not found`);
+  if (!site) throw new Error(`Site ${siteId} not found`);
+  if (site.prospectId !== prospectId) throw new Error('Site does not belong to this prospect');
+
+  let vercelProjectId: string | undefined;
+  if (site.metadata) {
+    try {
+      const meta = JSON.parse(site.metadata) as Record<string, unknown>;
+      vercelProjectId = meta.vercelProjectId as string | undefined;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!vercelProjectId) {
+    throw new Error('Site has no vercelProjectId; cannot update. Use generateSiteForProspect for new site.');
+  }
+
+  const doc = buildProspectDocument(prospect);
+
+  await updateGeneratedSite(siteId, { status: 'generating' });
+
+  try {
+    const result = await runSitePipeline({
+      document: doc,
+      waitForReady: false,
+      existingProjectId: vercelProjectId,
+    });
+
+    await updateGeneratedSite(siteId, {
       url: result.url,
       status: result.status === 'READY' ? 'published' : 'pending_review',
       publishedAt: result.status === 'READY' ? new Date() : undefined,
-      metadata: { deploymentId: result.deploymentId, vercelProjectId: result.projectId },
+      metadata: {
+        deploymentId: result.deploymentId,
+        vercelProjectId: result.projectId || vercelProjectId,
+        deploymentStatus: result.status,
+      },
     });
 
-    if (result.status === 'READY') {
-      await updateProspectStage(prospectId, 'onboarding');
-      await insertActivityEvent({
-        type: 'site_published',
-        prospectId,
-        targetLabel: prospect.name,
-        detail: `Site published at ${result.url}`,
-        status: 'completed',
-        triggeredBy: 'agent',
-        metadata: { url: result.url, siteId: siteRecord.id },
-      });
-    }
+    await insertActivityEvent({
+      type: 'site_updated',
+      prospectId,
+      targetLabel: prospect.name,
+      detail: `Site updated at ${result.url}`,
+      status: 'completed',
+      triggeredBy: 'agent',
+      metadata: { siteId, url: result.url },
+    });
   } catch (err) {
-    await updateGeneratedSite(siteRecord.id, { status: 'revision_requested' });
+    await updateGeneratedSite(siteId, { status: 'revision_requested' });
     await insertActivityEvent({
       type: 'agent_error',
       prospectId,
       targetLabel: prospect.name,
-      detail: `Site generation failed: ${err instanceof Error ? err.message : String(err)}`,
+      detail: `Site update failed: ${err instanceof Error ? err.message : String(err)}`,
       status: 'failed',
       triggeredBy: 'agent',
-      metadata: { siteId: siteRecord.id },
+      metadata: { siteId },
     });
     throw err;
   }

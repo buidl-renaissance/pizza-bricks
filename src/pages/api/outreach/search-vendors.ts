@@ -17,6 +17,18 @@ function orNull(v: string | null | undefined): string | null {
   return t !== '' ? t : null;
 }
 
+type NormalizedPlace = ReturnType<typeof normalizeGooglePlace>;
+type VendorWithEnrichment = NormalizedPlace & {
+  id: string;
+  status?: string;
+  facebookPageId?: string | null;
+  facebookPageUrl?: string | null;
+  instagramUrl?: string | null;
+  email?: string | null;
+  websiteQuality?: string | null;
+  recentPosts?: string | null;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -36,14 +48,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .then(places => places.map(normalizeGooglePlace).filter(isFoodVendor));
 
     const db = getDb();
-    const upserted = [];
+    const upserted: VendorWithEnrichment[] = [];
 
     for (const vendor of allResults) {
       let existing = null;
+      const v = vendor as typeof vendor & { facebookPageId?: string; facebookPageUrl?: string; instagramUrl?: string; email?: string; websiteQuality?: string; recentPosts?: string };
 
-      if (vendor.facebookPageId) {
+      if (v.facebookPageId) {
         existing = await db.select().from(vendors)
-          .where(eq(vendors.facebookPageId, vendor.facebookPageId))
+          .where(eq(vendors.facebookPageId, v.facebookPageId))
           .then(r => r[0] || null);
       }
       if (!existing && vendor.googlePlaceId) {
@@ -55,8 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (existing) {
         await db.update(vendors)
           .set({
-            facebookPageId: orNull(vendor.facebookPageId ?? existing.facebookPageId ?? null),
-            facebookPageUrl: vendor.facebookPageUrl || existing.facebookPageUrl,
+            facebookPageId: orNull(v.facebookPageId ?? existing.facebookPageId ?? null),
+            facebookPageUrl: v.facebookPageUrl || existing.facebookPageUrl,
             googlePlaceId: orNull(vendor.googlePlaceId ?? existing.googlePlaceId ?? null),
             name: vendor.name,
             address: vendor.address || existing.address,
@@ -66,10 +79,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             categories: vendor.categories || existing.categories,
             hasWebsite: vendor.hasWebsite,
             websiteUrl: vendor.websiteUrl || existing.websiteUrl,
-            email: vendor.email || existing.email,
+            email: v.email || existing.email,
             coverPhotoUrl: vendor.coverPhotoUrl || existing.coverPhotoUrl,
             topReviews: vendor.topReviews || existing.topReviews,
-            recentPosts: vendor.recentPosts || existing.recentPosts,
+            recentPosts: v.recentPosts || existing.recentPosts,
             updatedAt: new Date(),
           })
           .where(eq(vendors.id, existing.id));
@@ -79,8 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const id = uuid();
         await db.insert(vendors).values({
           id,
-          facebookPageId: orNull(vendor.facebookPageId ?? null),
-          facebookPageUrl: vendor.facebookPageUrl || null,
+          facebookPageId: orNull(v.facebookPageId ?? null),
+          facebookPageUrl: v.facebookPageUrl || null,
           googlePlaceId: orNull(vendor.googlePlaceId ?? null),
           name: vendor.name,
           address: vendor.address,
@@ -90,10 +103,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           categories: vendor.categories,
           hasWebsite: vendor.hasWebsite,
           websiteUrl: vendor.websiteUrl,
-          email: vendor.email || null,
+          email: v.email || null,
           coverPhotoUrl: vendor.coverPhotoUrl,
           topReviews: vendor.topReviews || null,
-          recentPosts: vendor.recentPosts || null,
+          recentPosts: v.recentPosts || null,
           status: 'candidate',
         });
 
