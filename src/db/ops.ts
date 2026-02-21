@@ -17,7 +17,7 @@ import type {
   ActivityEventType,
   ActivityEventStatus,
   TriggeredBy,
-  EmailStatus,
+  EmailLogStatus,
   GeneratedSiteStatus,
   AgentStatus,
 } from './schema';
@@ -243,7 +243,7 @@ export async function insertEmailLog(data: {
   templateId: string;
   sequenceStep?: number;
   subject: string;
-  status?: EmailStatus;
+  status?: EmailLogStatus;
   messageId?: string | null;
 }): Promise<EmailLog> {
   const db = getDb();
@@ -254,7 +254,7 @@ export async function insertEmailLog(data: {
     templateId: data.templateId,
     sequenceStep: data.sequenceStep ?? 1,
     subject: data.subject,
-    status: data.status ?? 'queued' as EmailStatus,
+    status: data.status ?? 'queued' as EmailLogStatus,
     sentAt: null,
     openedAt: null,
     repliedAt: null,
@@ -344,7 +344,7 @@ export async function findEmailLogForInboundReply(opts: {
   return rows[0]?.log;
 }
 
-export async function updateEmailLogStatus(id: string, status: EmailStatus, extra?: {
+export async function updateEmailLogStatus(id: string, status: EmailLogStatus, extra?: {
   sentAt?: Date;
   openedAt?: Date;
   repliedAt?: Date;

@@ -45,21 +45,26 @@ export default async function handler(
   const agentURI = `${appUrl}/agent.json`;
 
   try {
-    const provider = new ethers.JsonRpcProvider(BASE_MAINNET_RPC);
+    const rpcUrl = process.env.BASE_MAINNET_RPC_URL ?? BASE_MAINNET_RPC;
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
     const registry = new ethers.Contract(IDENTITY_REGISTRY_BASE, REGISTRY_ABI, wallet);
 
-    // Check if already registered
-    const balance: bigint = await registry.balanceOf(wallet.address);
-    if (balance > 0n) {
-      const agentId: bigint = await registry.tokenOfOwnerByIndex(wallet.address, 0);
-      const existingURI: string = await registry.tokenURI(agentId);
-      return res.status(200).json({
-        alreadyRegistered: true,
-        agentId: agentId.toString(),
-        agentURI: existingURI,
-        basescanUrl: `https://basescan.org/token/${IDENTITY_REGISTRY_BASE}?a=${agentId.toString()}`,
-      });
+    // Check if already registered (non-fatal: some RPCs/proxies return CALL_EXCEPTION with no revert data)
+    try {
+      const balance: bigint = await registry.balanceOf(wallet.address);
+      if (balance > 0n) {
+        const agentId: bigint = await registry.tokenOfOwnerByIndex(wallet.address, 0);
+        const existingURI: string = await registry.tokenURI(agentId);
+        return res.status(200).json({
+          alreadyRegistered: true,
+          agentId: agentId.toString(),
+          agentURI: existingURI,
+          basescanUrl: `https://basescan.org/token/${IDENTITY_REGISTRY_BASE}?a=${agentId.toString()}`,
+        });
+      }
+    } catch (checkErr) {
+      console.warn('[ERC-8004] Already-registered check failed (proceeding to register):', checkErr instanceof Error ? checkErr.message : checkErr);
     }
 
     console.log(`[ERC-8004] Registering agent with URI: ${agentURI}`);
