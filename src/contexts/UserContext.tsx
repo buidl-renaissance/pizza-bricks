@@ -39,9 +39,6 @@ declare global {
     renaissanceContext?: RenaissanceContext;
     __RENAISSANCE_CONTEXT__?: RenaissanceContext;
     __renaissanceAuthContext?: RenaissanceContext;
-    ReactNativeWebView?: {
-      postMessage: (message: string) => void;
-    };
     // Function that native app can call to set context
     setRenaissanceContext?: (ctx: RenaissanceContext) => void;
   }

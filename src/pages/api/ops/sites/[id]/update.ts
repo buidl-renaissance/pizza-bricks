@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/ops-auth';
-import { getGeneratedSite, getProspect, updateGeneratedSite } from '@/db/ops';
+import { getGeneratedSite, getProspect, updateGeneratedSite, insertActivityEvent } from '@/db/ops';
 import { deployToVercel } from '@/lib/vercel-deployer';
 import { fetchDeploymentSource } from '@/lib/vercel-deployer';
 import { applySiteEdits } from '@/lib/site-editor';
@@ -91,6 +91,15 @@ export default async function handler(
           deploymentStatusUpdatedAt: Date.now(),
         },
       });
+      await insertActivityEvent({
+        type: 'site_updated',
+        prospectId: site.prospectId,
+        targetLabel: prospect.name,
+        detail: `Site updated via full regeneration (source unavailable): ${result.url}`,
+        status: 'completed',
+        triggeredBy: 'manual',
+        metadata: { siteId, url: result.url, prompt },
+      });
       return res.status(200).json({
         success: true,
         url: result.url,
@@ -130,9 +139,28 @@ export default async function handler(
       },
     });
 
+    await insertActivityEvent({
+      type: 'site_updated',
+      prospectId: site.prospectId,
+      targetLabel: prospect.name,
+      detail: `Site updated with prompt edits: ${url}`,
+      status: 'completed',
+      triggeredBy: 'manual',
+      metadata: { siteId, url, prompt },
+    });
+
     return res.status(200).json({ success: true, url });
   } catch (err) {
     console.error('[sites/update] error:', err);
+    await insertActivityEvent({
+      type: 'agent_error',
+      prospectId: site.prospectId,
+      targetLabel: prospect.name,
+      detail: `Website update failed: ${err instanceof Error ? err.message : String(err)}`,
+      status: 'failed',
+      triggeredBy: 'manual',
+      metadata: { siteId, prompt },
+    });
     return res.status(500).json({
       error: err instanceof Error ? err.message : 'Internal server error',
     });

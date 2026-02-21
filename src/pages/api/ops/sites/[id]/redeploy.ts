@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/ops-auth';
-import { getGeneratedSite, getProspect, updateGeneratedSite } from '@/db/ops';
+import { getGeneratedSite, getProspect, updateGeneratedSite, insertActivityEvent } from '@/db/ops';
 import { runSitePipeline } from '@/lib/site-pipeline';
 
 function buildProspectDocument(prospect: Awaited<ReturnType<typeof getProspect>>): string {
@@ -69,6 +69,15 @@ export default async function handler(
         deploymentStatusUpdatedAt: Date.now(),
       },
     });
+    await insertActivityEvent({
+      type: 'site_updated',
+      prospectId: site.prospectId,
+      targetLabel: prospect.name,
+      detail: `Site redeployed: ${result.url}`,
+      status: 'completed',
+      triggeredBy: 'manual',
+      metadata: { siteId, url: result.url, deploymentId: result.deploymentId },
+    });
     return res.status(200).json({
       success: true,
       deploymentId: result.deploymentId,
@@ -76,6 +85,15 @@ export default async function handler(
     });
   } catch (err) {
     console.error('[sites/redeploy] error:', err);
+    await insertActivityEvent({
+      type: 'agent_error',
+      prospectId: site.prospectId,
+      targetLabel: prospect.name,
+      detail: `Site redeploy failed: ${err instanceof Error ? err.message : String(err)}`,
+      status: 'failed',
+      triggeredBy: 'manual',
+      metadata: { siteId },
+    });
     return res.status(500).json({
       error: err instanceof Error ? err.message : 'Internal server error',
     });
