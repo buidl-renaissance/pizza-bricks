@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuid } from 'uuid';
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import { getDb } from '@/db/drizzle';
 import { vendors } from '@/db/schema';
 import { geocodeLocation } from '@/lib/geocode';
@@ -203,12 +203,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }));
     }
 
-    // Sort: no website first, then outdated, basic, modern
+    // Always prepend demo vendors from DB (they never come from Google Places)
+    const demoVendors = await db
+      .select()
+      .from(vendors)
+      .where(like(vendors.googlePlaceId, 'demo_%'));
+
+    const enrichedIds = new Set(enriched.map(v => v.id));
+    for (const demo of demoVendors) {
+      if (!enrichedIds.has(demo.id)) {
+        enriched.push(demo);
+      }
+    }
+
+    // Sort: demo vendors first, then by website quality (none > poor > basic > good), then by rating
     enriched.sort((a, b) => {
+      const aIsDemo = a.notes === '__demo__' ? 0 : 1;
+      const bIsDemo = b.notes === '__demo__' ? 0 : 1;
+      if (aIsDemo !== bIsDemo) return aIsDemo - bIsDemo;
       const aOrder = websiteQualitySortOrder(a.websiteQuality ?? null);
       const bOrder = websiteQualitySortOrder(b.websiteQuality ?? null);
       if (aOrder !== bOrder) return aOrder - bOrder;
-      // Within same tier, higher rated first
       return parseFloat(b.rating || '0') - parseFloat(a.rating || '0');
     });
 
