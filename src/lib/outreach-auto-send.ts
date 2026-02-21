@@ -50,6 +50,7 @@ export async function triggerOutreachEmailForPublishedSite(
   let vendor = await db.select().from(vendors).where(eq(vendors.id, vendorId)).then((r) => r[0] ?? null);
   if (!vendor) return { sent: false, error: 'Vendor not found' };
   if (!vendor.email) return { sent: false, error: 'Vendor has no email' };
+  const toEmail = vendor.email;
 
   try {
     // Fetch menu snippets if not already present
@@ -131,7 +132,7 @@ export async function triggerOutreachEmailForPublishedSite(
     } as NewOutreachEmail);
 
     const { messageId, threadId } = await sendEmail({
-      to: vendor.email,
+      to: toEmail,
       subject,
       bodyHtml,
     });
