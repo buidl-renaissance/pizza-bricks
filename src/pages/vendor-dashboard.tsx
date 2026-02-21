@@ -4,9 +4,8 @@ import styled, { keyframes } from 'styled-components';
 import { ConnectWallet, Wallet } from '@coinbase/onchainkit/wallet';
 import { FundButton } from '@coinbase/onchainkit/fund';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
-import { base, baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
 const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
 const AGENT_WALLET = (process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS ?? '') as `0x${string}`;
 const APP_NAME = 'Pizza Bricks';
@@ -22,12 +21,12 @@ function WalletMenu({ address }: { address: string }) {
   const { disconnect } = useDisconnect();
   const { data: usdcBalance } = useBalance({
     address: address as `0x${string}`,
-    token: USDC_ADDRESS,
-    chainId: baseSepolia.id,
+    token: USDC_BASE_MAINNET,
+    chainId: base.id,
   });
   const { data: ethBalance } = useBalance({
     address: address as `0x${string}`,
-    chainId: baseSepolia.id,
+    chainId: base.id,
   });
 
   useEffect(() => {
@@ -82,7 +81,7 @@ function WalletMenu({ address }: { address: string }) {
                 </AddressRow>
                 <NetworkPill>
                   <NetworkDot />
-                  Base Sepolia
+                  Base
                 </NetworkPill>
               </IdentityInfo>
             </IdentityRow>
@@ -117,7 +116,7 @@ function WalletMenu({ address }: { address: string }) {
           <DropSection>
             <DropSectionTitle>Actions</DropSectionTitle>
             <DropLink
-              href={`https://sepolia.basescan.org/address/${address}`}
+              href={`https://basescan.org/address/${address}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
@@ -272,7 +271,7 @@ function AgentFundingCard() {
     <FundingCard>
       <FundingHeader>
         <CardLabel style={{ margin: 0 }}>Agent Wallet — Marketing Funds</CardLabel>
-        <FundingBadge>Base Mainnet</FundingBadge>
+        <FundingBadge>Base</FundingBadge>
       </FundingHeader>
 
       <FundingBalanceRow>
@@ -371,12 +370,12 @@ function AgentIdentityCard() {
       <IdentityHeader>
         <CardLabel style={{ margin: 0 }}>ERC-8004 Agent Identity</CardLabel>
         <IdentityBadge $registered={isRegistered}>
-          {isRegistered ? 'Registered' : 'Base Mainnet'}
+          {isRegistered ? 'Registered' : 'Base'}
         </IdentityBadge>
       </IdentityHeader>
 
       <IdentityDesc>
-        Register this agent in the ERC-8004 Trustless Agents Identity Registry on Base mainnet.
+        Register this agent in the ERC-8004 Trustless Agents Identity Registry on Base.
         Once registered, the agent receives a unique on-chain ID tied to{' '}
         <code style={{ fontSize: '0.78rem' }}>/agent.json</code> — making its identity verifiable
         by other agents and protocols.
@@ -441,11 +440,11 @@ function AgentIdentityCard() {
 
 export default function VendorDashboard() {
   const { address, isConnected } = useAccount();
-  const { data: ethBalance } = useBalance({ address, chainId: baseSepolia.id });
+  const { data: ethBalance } = useBalance({ address, chainId: base.id });
   const { data: usdcBalance } = useBalance({
     address,
-    token: USDC_ADDRESS,
-    chainId: baseSepolia.id,
+    token: USDC_BASE_MAINNET,
+    chainId: base.id,
   });
 
   return (
@@ -515,7 +514,7 @@ export default function VendorDashboard() {
                 <CardLabel>Network</CardLabel>
                 <NetworkInfo>
                   <NetworkDot />
-                  Base Sepolia (Testnet)
+                  Base
                 </NetworkInfo>
                 <NetworkDetail>
                   {address && <AddressDisplay>{address}</AddressDisplay>}
@@ -535,7 +534,7 @@ export default function VendorDashboard() {
                   </ActionButton>
                   <ActionButton
                     as="a"
-                    href={address ? `https://sepolia.basescan.org/address/${address}` : '#'}
+                    href={address ? `https://basescan.org/address/${address}` : '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
