@@ -1,9 +1,11 @@
 import { BrandBrief } from './brand-brief';
 import { GeneratedFile } from './site-generator';
+import type { BiteBiteConfig } from './site-pipeline';
 
 export interface PostProcessorOptions {
   brief: BrandBrief;
   analyticsId?: string;
+  biteBiteConfig?: BiteBiteConfig;
 }
 
 function buildSchemaOrgLd(brief: BrandBrief): string {

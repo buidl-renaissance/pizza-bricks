@@ -1,4 +1,5 @@
 import type { BrandBrief } from './brand-brief';
+import type { BiteBiteConfig } from './site-pipeline';
 
 export interface GeneratedPrompts {
   systemPrompt: string;
@@ -31,7 +32,10 @@ const VENDOR_VARIANTS: Record<string, VendorVariant> = {
   },
 };
 
-export function buildPrompts(brief: BrandBrief): GeneratedPrompts {
+export function buildPrompts(
+  brief: BrandBrief,
+  biteBiteConfig?: BiteBiteConfig
+): GeneratedPrompts {
   const variant =
     VENDOR_VARIANTS[brief.business.vendorType] ?? VENDOR_VARIANTS.home_caterer;
 
@@ -78,7 +82,17 @@ Design requirements:
 - Sections: Hero, Menu, About/Story, Contact/Order
 - Include a sticky navigation header
 - Include a footer with contact info and social links
-- Hero section: Include an appropriate full-width background image. Use the provided hero URL if given; otherwise choose a high-quality Unsplash image (https://images.unsplash.com/photo-...) that matches the business type, cuisine, and brand (e.g., pizza/tacos for restaurants, food truck for mobile vendors, catering spread for home caterers). Ensure the image has good contrast with overlay text.`;
+- Hero section: Include an appropriate full-width background image. Use the provided hero URL if given; otherwise choose a high-quality Unsplash image (https://images.unsplash.com/photo-...) that matches the business type, cuisine, and brand (e.g., pizza/tacos for restaurants, food truck for mobile vendors, catering spread for home caterers). Ensure the image has good contrast with overlay text.
+${
+  biteBiteConfig
+    ? `- MENU ITEM BUY LINKS (CRITICAL): Each menu item in the Menu section MUST be a clickable link. Wrap each menu item (or its name/row) in an <a> tag. The href format:
+  \`\${baseUrl}/configuration/\${businessSlug}/buy?productname=\${encodeURIComponent(itemName)}&priceUsd=\${numericPrice}&recipientAddress=\${recipientAddress}&imageUrl=\${encodeURIComponent(heroImageUrl)}\`
+  - baseUrl: ${biteBiteConfig.baseUrl ?? 'https://bitebitebot.vercel.app'}
+  - businessSlug: ${biteBiteConfig.businessSlug}
+  - recipientAddress: ${biteBiteConfig.recipientAddress}
+  - For each item: productname = menu item name (URL-encode), priceUsd = numeric price only (e.g. "$10" or "10.00" -> 10), imageUrl = hero/background image URL (URL-encode). Use the hero image provided below for imageUrl.`
+    : ''
+}`;
 
   const menuLines = brief.menu
     .map(
@@ -119,6 +133,7 @@ BRAND IDENTITY
 
 MENU
 ${menuLines}
+${biteBiteConfig ? `\nMENU ITEM BUY URL: Each menu item must link to: ${biteBiteConfig.baseUrl ?? 'https://bitebitebot.vercel.app'}/configuration/${biteBiteConfig.businessSlug}/buy?productname={itemName}&priceUsd={numericPrice}&recipientAddress=${biteBiteConfig.recipientAddress}&imageUrl={heroImageUrl}\nUse encodeURIComponent for productname and imageUrl query values.\n` : ''}
 
 SOCIAL MEDIA
 ${socialLines}

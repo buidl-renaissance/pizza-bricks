@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { BrandBrief } from './brand-brief';
+import type { BiteBiteConfig } from './site-pipeline';
 import { buildPrompts } from './prompt-engineer';
 
 const GeneratedFileSchema = z.object({
@@ -45,9 +46,12 @@ function parseGeneratedSite(rawText: string): GeneratedSite {
   return GeneratedSiteSchema.parse(parsed);
 }
 
-export async function generateSite(brief: BrandBrief): Promise<GeneratedSite> {
+export async function generateSite(
+  brief: BrandBrief,
+  biteBiteConfig?: BiteBiteConfig
+): Promise<GeneratedSite> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const prompts = buildPrompts(brief);
+  const prompts = buildPrompts(brief, biteBiteConfig);
 
   const stream = client.messages.stream({
     model: 'claude-opus-4-6',

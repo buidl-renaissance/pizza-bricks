@@ -6,7 +6,7 @@ import {
   getGeneratedSite,
   updateProspectStage,
 } from '@/db/ops';
-import { runSitePipeline } from '@/lib/site-pipeline';
+import { runSitePipeline, deriveBiteBiteConfig } from '@/lib/site-pipeline';
 
 /**
  * Start site generation for a prospect. Returns siteId immediately; pipeline runs in background.
@@ -33,11 +33,13 @@ export async function startSiteGenerationForProspect(prospectId: string): Promis
   });
 
   const doc = buildProspectDocument(prospect);
+  const biteBiteConfig = deriveBiteBiteConfig(prospect);
 
   runSitePipeline({
     document: doc,
     waitForReady: false,
     prospectId,
+    ...(biteBiteConfig ? { biteBiteConfig } : {}),
   })
     .then(async (result) => {
       await updateGeneratedSite(siteRecord.id, {
@@ -102,6 +104,7 @@ export async function updateSiteForProspect(prospectId: string, siteId: string):
   }
 
   const doc = buildProspectDocument(prospect);
+  const biteBiteConfig = deriveBiteBiteConfig(prospect);
 
   await updateGeneratedSite(siteId, { status: 'generating' });
 
@@ -110,6 +113,7 @@ export async function updateSiteForProspect(prospectId: string, siteId: string):
       document: doc,
       waitForReady: false,
       existingProjectId: vercelProjectId,
+      ...(biteBiteConfig ? { biteBiteConfig } : {}),
     });
 
     await updateGeneratedSite(siteId, {

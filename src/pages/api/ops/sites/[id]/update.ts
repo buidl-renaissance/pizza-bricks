@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/ops-auth';
 import { getGeneratedSite, getProspect, updateGeneratedSite, insertActivityEvent } from '@/db/ops';
+import { runSitePipeline, deriveBiteBiteConfig } from '@/lib/site-pipeline';
 import { deployToVercel } from '@/lib/vercel-deployer';
 import { fetchDeploymentSource } from '@/lib/vercel-deployer';
 import { applySiteEdits } from '@/lib/site-editor';
@@ -75,11 +76,13 @@ export default async function handler(
       console.warn('[sites/update] Could not fetch deployment source, falling back to full pipeline:', fetchErr);
       const doc = buildProspectDocument(prospect);
       const enrichedDoc = `${doc}\n\nUser requested changes: ${prompt}`;
+      const biteBiteConfig = deriveBiteBiteConfig(prospect);
       const result = await runSitePipeline({
         document: enrichedDoc,
         waitForReady: false,
         prospectId: site.prospectId,
         existingProjectId: projectId,
+        ...(biteBiteConfig ? { biteBiteConfig } : {}),
       });
       await updateGeneratedSite(siteId, {
         url: result.url,

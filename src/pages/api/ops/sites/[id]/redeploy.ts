@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/ops-auth';
 import { getGeneratedSite, getProspect, updateGeneratedSite, insertActivityEvent } from '@/db/ops';
-import { runSitePipeline } from '@/lib/site-pipeline';
+import { runSitePipeline, deriveBiteBiteConfig } from '@/lib/site-pipeline';
 
 function buildProspectDocument(prospect: Awaited<ReturnType<typeof getProspect>>): string {
   if (!prospect) return '';
@@ -53,11 +53,13 @@ export default async function handler(
 
   try {
     const doc = buildProspectDocument(prospect);
+    const biteBiteConfig = deriveBiteBiteConfig(prospect);
     const result = await runSitePipeline({
       document: doc,
       waitForReady: false,
       prospectId: site.prospectId,
       ...(existingProjectId ? { existingProjectId } : {}),
+      ...(biteBiteConfig ? { biteBiteConfig } : {}),
     });
     await updateGeneratedSite(siteId, {
       url: result.url,
