@@ -4,10 +4,10 @@ import styled, { keyframes } from 'styled-components';
 import { ConnectWallet, Wallet } from '@coinbase/onchainkit/wallet';
 import { FundButton } from '@coinbase/onchainkit/fund';
 import { useAccount, useBalance, useDisconnect } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
+import { base } from 'wagmi/chains';
 import { useUser } from '@/contexts/UserContext';
 
-const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
+const USDC_BASE_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const;
 const AGENT_WALLET = (process.env.NEXT_PUBLIC_AGENT_WALLET_ADDRESS ?? '') as `0x${string}`;
 const APP_NAME = 'Pizza Bricks';
 
@@ -22,12 +22,12 @@ function WalletMenu({ address }: { address: string }) {
   const { disconnect } = useDisconnect();
   const { data: usdcBalance } = useBalance({
     address: address as `0x${string}`,
-    token: USDC_ADDRESS,
-    chainId: baseSepolia.id,
+    token: USDC_BASE_MAINNET,
+    chainId: base.id,
   });
   const { data: ethBalance } = useBalance({
     address: address as `0x${string}`,
-    chainId: baseSepolia.id,
+    chainId: base.id,
   });
 
   useEffect(() => {
@@ -82,7 +82,7 @@ function WalletMenu({ address }: { address: string }) {
                 </AddressRow>
                 <NetworkPill>
                   <NetworkDot />
-                  Base Sepolia
+                  Base
                 </NetworkPill>
               </IdentityInfo>
             </IdentityRow>
@@ -117,7 +117,7 @@ function WalletMenu({ address }: { address: string }) {
           <DropSection>
             <DropSectionTitle>Actions</DropSectionTitle>
             <DropLink
-              href={`https://sepolia.basescan.org/address/${address}`}
+              href={`https://basescan.org/address/${address}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setOpen(false)}
@@ -251,6 +251,194 @@ function AdiBalanceCard() {
   );
 }
 
+function AgentFundingCard() {
+  const [copied, setCopied] = useState(false);
+  const { data: agentUsdc, isLoading } = useBalance({
+    address: AGENT_WALLET || undefined,
+    token: USDC_BASE_MAINNET,
+    chainId: base.id,
+    query: { enabled: !!AGENT_WALLET, refetchInterval: 30_000 },
+  });
+
+  const copyAddress = useCallback(async () => {
+    if (!AGENT_WALLET) return;
+    await navigator.clipboard.writeText(AGENT_WALLET);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }, []);
+
+
+  return (
+    <FundingCard>
+      <FundingHeader>
+        <CardLabel style={{ margin: 0 }}>Agent Wallet — Marketing Funds</CardLabel>
+        <FundingBadge>Base</FundingBadge>
+      </FundingHeader>
+
+      <FundingBalanceRow>
+        <FundingAmount>
+          {isLoading ? '…' : agentUsdc ? parseFloat(agentUsdc.formatted).toFixed(2) : '0.00'}
+        </FundingAmount>
+        <FundingCurrency>USDC</FundingCurrency>
+      </FundingBalanceRow>
+
+      <FundingDesc>
+        Funds the AI outreach agent — covers email sends, vendor discovery, and onchain transactions.
+      </FundingDesc>
+
+      {AGENT_WALLET && (
+        <FundingAddressRow>
+          <FundingAddress title={AGENT_WALLET}>
+            {AGENT_WALLET.slice(0, 10)}…{AGENT_WALLET.slice(-8)}
+          </FundingAddress>
+          <FundingCopyBtn onClick={copyAddress} title="Copy address">
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            )}
+            {copied ? 'Copied!' : 'Copy'}
+          </FundingCopyBtn>
+        </FundingAddressRow>
+      )}
+
+      <FundingActions>
+        <FundButton />
+        <FundingLink
+          href={`https://basescan.org/address/${AGENT_WALLET}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+          Basescan
+        </FundingLink>
+      </FundingActions>
+    </FundingCard>
+  );
+}
+
+type IdentityState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'registered'; agentId: string; basescanUrl: string; agentURI: string }
+  | { status: 'error'; message: string };
+
+function AgentIdentityCard() {
+  const [state, setState] = useState<IdentityState>({ status: 'idle' });
+
+  const register = useCallback(async () => {
+    setState({ status: 'loading' });
+    try {
+      const res = await fetch('/api/agent/register-identity', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setState({ status: 'error', message: data.error ?? 'Registration failed' });
+        return;
+      }
+      if (data.alreadyRegistered) {
+        setState({
+          status: 'registered',
+          agentId: data.agentId,
+          basescanUrl: data.basescanUrl,
+          agentURI: data.agentURI,
+        });
+        return;
+      }
+      setState({
+        status: 'registered',
+        agentId: data.agentId,
+        basescanUrl: data.basescanUrl,
+        agentURI: data.agentURI,
+      });
+    } catch (err) {
+      setState({ status: 'error', message: err instanceof Error ? err.message : 'Network error' });
+    }
+  }, []);
+
+  const isRegistered = state.status === 'registered';
+  const isLoading = state.status === 'loading';
+
+  return (
+    <IdentityCard>
+      <IdentityHeader>
+        <CardLabel style={{ margin: 0 }}>ERC-8004 Agent Identity</CardLabel>
+        <IdentityBadge $registered={isRegistered}>
+          {isRegistered ? 'Registered' : 'Base'}
+        </IdentityBadge>
+      </IdentityHeader>
+
+      <IdentityDesc>
+        Register this agent in the ERC-8004 Trustless Agents Identity Registry on Base.
+        Once registered, the agent receives a unique on-chain ID tied to{' '}
+        <code style={{ fontSize: '0.78rem' }}>/agent.json</code> — making its identity verifiable
+        by other agents and protocols.
+      </IdentityDesc>
+
+      {isRegistered && (
+        <IdentityAgentId>
+          Agent ID: #{state.agentId}
+          {'  ·  '}
+          <span style={{ color: '#6366f1', wordBreak: 'break-all' }}>{state.agentURI}</span>
+        </IdentityAgentId>
+      )}
+
+      <IdentityActions>
+        {!isRegistered && (
+          <RegisterBtn $loading={isLoading} onClick={register} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0" strokeDasharray="28" strokeDashoffset="10" />
+                </svg>
+                Registering…
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 3" />
+                </svg>
+                Register Agent
+              </>
+            )}
+          </RegisterBtn>
+        )}
+        <IdentityLink
+          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/agent.json`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+          agent.json
+        </IdentityLink>
+        {isRegistered && (
+          <IdentityLink href={state.basescanUrl} target="_blank" rel="noopener noreferrer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Basescan
+          </IdentityLink>
+        )}
+      </IdentityActions>
+
+      {state.status === 'error' && (
+        <IdentityError>{state.message}</IdentityError>
+      )}
+    </IdentityCard>
+  );
+}
+
 export default function VendorDashboard() {
   const { address, isConnected } = useAccount();
   const { user } = useUser();
@@ -268,11 +456,11 @@ export default function VendorDashboard() {
     !!linkedAccountAddress &&
     (!AGENT_WALLET || linkedAccountAddress.toLowerCase() !== AGENT_WALLET.toLowerCase());
 
-  const { data: ethBalance } = useBalance({ address, chainId: baseSepolia.id });
+  const { data: ethBalance } = useBalance({ address, chainId: base.id });
   const { data: usdcBalance } = useBalance({
     address,
-    token: USDC_ADDRESS,
-    chainId: baseSepolia.id,
+    token: USDC_BASE_MAINNET,
+    chainId: base.id,
   });
 
   return (
@@ -345,11 +533,14 @@ export default function VendorDashboard() {
 
               <AdiBalanceCard />
 
+              <AgentFundingCard />
+              <AgentIdentityCard />
+
               <NetworkCard>
                 <CardLabel>Network</CardLabel>
                 <NetworkInfo>
                   <NetworkDot />
-                  Base Sepolia (Testnet)
+                  Base
                 </NetworkInfo>
                 <NetworkDetail>
                   {address && (
@@ -396,7 +587,7 @@ export default function VendorDashboard() {
                   </ActionButton>
                   <ActionButton
                     as="a"
-                    href={address ? `https://sepolia.basescan.org/address/${address}` : '#'}
+                    href={address ? `https://basescan.org/address/${address}` : '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -1042,6 +1233,179 @@ const AdiError = styled.div`
   border: 1px solid #ef444433;
   border-radius: 8px;
   padding: 10px 12px;
+`;
+
+/* ─── agent funding card ─────────────────────────────────────────── */
+const FundingCard = styled(Card)``;
+
+const FundingHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+`;
+
+const FundingBadge = styled.span`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.textMuted};
+  background: ${({ theme }) => theme.backgroundAlt};
+  border: 1px solid ${({ theme }) => theme.borderSubtle};
+  padding: 2px 8px;
+  border-radius: 20px;
+`;
+
+const FundingBalanceRow = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+`;
+
+const FundingAmount = styled.div`
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+`;
+
+const FundingCurrency = styled.span`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.accent};
+`;
+
+const FundingDesc = styled.p`
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin: 0.75rem 0 1rem;
+  line-height: 1.5;
+`;
+
+const FundingAddressRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1rem;
+`;
+
+const FundingAddress = styled.code`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.textMuted};
+  word-break: break-all;
+`;
+
+const FundingCopyBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid ${({ theme }) => theme.borderSubtle};
+  background: transparent;
+  color: ${({ theme }) => theme.textMuted};
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  &:hover {
+    color: ${({ theme }) => theme.text};
+    border-color: ${({ theme }) => theme.border};
+  }
+`;
+
+const FundingActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const FundingLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+`;
+
+/* ─── agent identity card ────────────────────────────────────────── */
+const IdentityCard = styled(Card)``;
+
+const IdentityHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+`;
+
+const IdentityBadge = styled.span<{ $registered?: boolean }>`
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: ${({ theme, $registered }) => ($registered ? theme.success : theme.textMuted)};
+  background: ${({ theme, $registered }) => ($registered ? `${theme.success}20` : theme.backgroundAlt)};
+  border: 1px solid ${({ theme, $registered }) => ($registered ? theme.success : theme.borderSubtle)};
+  padding: 2px 8px;
+  border-radius: 20px;
+`;
+
+const IdentityDesc = styled.p`
+  font-size: 0.8rem;
+  color: ${({ theme }) => theme.textMuted};
+  margin: 0 0 1rem;
+  line-height: 1.5;
+`;
+
+const IdentityAgentId = styled.div`
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  color: ${({ theme }) => theme.textMuted};
+`;
+
+const IdentityActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const RegisterBtn = styled.button<{ $loading?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  background: ${({ theme }) => theme.accent};
+  border: none;
+  border-radius: 8px;
+  cursor: ${({ $loading }) => ($loading ? 'wait' : 'pointer')};
+  opacity: ${({ $loading }) => ($loading ? 0.8 : 1)};
+  &:hover:not(:disabled) {
+    opacity: 0.95;
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+`;
+
+const IdentityLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.accent};
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+`;
+
+const IdentityError = styled.div`
+  font-size: 0.8rem;
+  color: #ef4444;
+  margin-top: 0.75rem;
 `;
 
 
