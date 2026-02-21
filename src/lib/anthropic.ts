@@ -9,7 +9,7 @@ function getClient() {
 
 async function createMessage(
   params: Parameters<Anthropic['messages']['create']>[0],
-): ReturnType<Anthropic['messages']['create']> {
+): Promise<Awaited<ReturnType<Anthropic['messages']['create']>>> {
   const client = getClient();
   const message = await client.messages.create(params);
   if (message.usage) {

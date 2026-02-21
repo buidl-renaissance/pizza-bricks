@@ -15,6 +15,8 @@ export type ActivityEventType =
 export type ActivityEventStatus = 'completed'|'active'|'pending'|'failed';
 export type TriggeredBy = 'agent'|'manual'|'system';
 export type EmailLogStatus = 'queued'|'sent'|'delivered'|'opened'|'replied'|'bounced'|'failed';
+/** @deprecated Use EmailLogStatus */
+export type EmailStatus = EmailLogStatus;
 export type GeneratedSiteStatus = 'generating'|'pending_review'|'published'|'revision_requested'|'archived';
 export type AgentStatus = 'running'|'paused'|'error';
 
