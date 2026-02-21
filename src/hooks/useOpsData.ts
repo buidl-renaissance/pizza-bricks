@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { ActivityEvent, Prospect, AgentStateRow, GeneratedSite } from '@/db/ops';
+
+/** Prospect with outreach-email-sent flag (from GET /api/ops/prospects). */
+export type ProspectWithOutreach = Prospect & { outreachEmailSent: boolean };
 import type { Alert } from '@/lib/agent/workflows/alerts';
 import type { PipelineStage, GeneratedSiteStatus } from '@/db/schema';
 
@@ -153,7 +156,7 @@ export function useAgentState() {
 }
 
 export function useProspects(opts: { stage?: PipelineStage; limit?: number } = {}) {
-  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [prospects, setProspects] = useState<ProspectWithOutreach[]>([]);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
@@ -162,7 +165,7 @@ export function useProspects(opts: { stage?: PipelineStage; limit?: number } = {
       const params = new URLSearchParams();
       if (opts.stage) params.set('stage', opts.stage);
       if (opts.limit) params.set('limit', String(opts.limit));
-      const d = await apiFetch<{ prospects: Prospect[] }>(`/api/ops/prospects?${params}`);
+      const d = await apiFetch<{ prospects: ProspectWithOutreach[] }>(`/api/ops/prospects?${params}`);
       setProspects(d.prospects);
     } catch { /* ignore */ }
     finally { setLoading(false); }

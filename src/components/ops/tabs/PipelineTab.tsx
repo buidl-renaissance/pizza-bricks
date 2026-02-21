@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import styled, { keyframes, css } from 'styled-components';
-import { useProspects, useSites } from '@/hooks/useOpsData';
+import { useProspects, useSites, type ProspectWithOutreach } from '@/hooks/useOpsData';
 import type { PipelineStage } from '@/db/schema';
 import type { Prospect, GeneratedSite } from '@/db/ops';
 import type { EnrichedSite } from '@/hooks/useOpsData';
@@ -219,15 +219,17 @@ const STATUS_LABELS: Record<string, string> = {
 // ── Card with site awareness ──────────────────────────────────────────────────
 
 interface ProspectCardProps {
-  prospect: Prospect;
+  prospect: ProspectWithOutreach;
   site: EnrichedSite | undefined;
   onStageChange: (id: string, stage: PipelineStage) => void;
   onSiteGenerated: () => void;
+  onOutreachSent?: () => void;
 }
 
-function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated }: ProspectCardProps) {
+function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated, onOutreachSent }: ProspectCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   // Poll site state if generating
   const [polledSite, setPolledSite] = useState<EnrichedSite | null>(null);
 
@@ -274,6 +276,29 @@ function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated }: Pr
       setGenerating(false);
     }
   };
+
+  const handleSendOutreachEmail = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSendingEmail(true);
+    try {
+      const res = await fetch('/api/ops/outreach/trigger-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectId: prospect.id }),
+      });
+      if (res.ok) {
+        onOutreachSent?.();
+      }
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const showSendOutreachButton = Boolean(
+    currentSite?.url &&
+    currentSite?.status === 'published' &&
+    !prospect.outreachEmailSent
+  );
 
   return (
     <Card onClick={() => setExpanded(x => !x)}>
@@ -323,6 +348,16 @@ function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated }: Pr
             >
               {generating ? 'Starting…' : '+ Generate Site'}
             </GenBtn>
+          )}
+
+          {showSendOutreachButton && (
+            <SendOutreachBtn
+              $loading={sendingEmail}
+              disabled={sendingEmail}
+              onClick={handleSendOutreachEmail}
+            >
+              {sendingEmail ? 'Sending…' : 'Send outreach email'}
+            </SendOutreachBtn>
           )}
         </>
       )}
@@ -396,6 +431,7 @@ export function PipelineTab() {
                   site={siteByProspect.get(p.id)}
                   onStageChange={handleStageChange}
                   onSiteGenerated={handleSiteUpdate}
+                  onOutreachSent={reloadProspects}
                 />
               ))}
             </Cards>

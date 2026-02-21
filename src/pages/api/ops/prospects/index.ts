@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireRead } from '@/lib/ops-auth';
-import { listProspects } from '@/db/ops';
+import { listProspects, getOutreachEmailSentProspectIds } from '@/db/ops';
 import type { PipelineStage, ProspectType } from '@/db/schema';
+
+export type ProspectWithOutreach = Awaited<ReturnType<typeof listProspects>>[number] & { outreachEmailSent: boolean };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -14,5 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     limit: Number(limit),
     offset: Number(offset),
   });
-  return res.status(200).json({ prospects });
+  const sentIds = await getOutreachEmailSentProspectIds(prospects.map(p => p.id));
+  const enriched: ProspectWithOutreach[] = prospects.map(p => ({
+    ...p,
+    outreachEmailSent: sentIds.has(p.id),
+  }));
+  return res.status(200).json({ prospects: enriched });
 }

@@ -10,6 +10,7 @@ import {
   agentTicks,
   vendorOnboardings,
   agenticCosts,
+  outreachEmails,
 } from './schema';
 import type {
   PipelineStage,
@@ -181,6 +182,24 @@ export async function getOrCreateProspectFromVendor(vendor: Vendor): Promise<Pro
 export async function getLatestPublishedSiteForProspect(prospectId: string): Promise<GeneratedSite | undefined> {
   const sites = await listGeneratedSites({ prospectId, limit: 10 });
   return sites.find(s => s.status === 'published' || s.status === 'pending_review');
+}
+
+/**
+ * Prospect IDs that have at least one sent outreach email (via metadata.vendorId → outreach_emails).
+ * Used to show "initial email sent" and to show "Send outreach email" only when not yet sent.
+ */
+export async function getOutreachEmailSentProspectIds(prospectIds: string[]): Promise<Set<string>> {
+  if (prospectIds.length === 0) return new Set();
+  const db = getDb();
+  const rows = await db
+    .select({ prospectId: prospects.id })
+    .from(prospects)
+    .innerJoin(outreachEmails, and(
+      eq(outreachEmails.status, 'sent'),
+      sql`json_extract(${prospects.metadata}, '$.vendorId') = ${outreachEmails.vendorId}`
+    ))
+    .where(inArray(prospects.id, prospectIds));
+  return new Set(rows.map(r => r.prospectId));
 }
 
 // ── Activity Events ───────────────────────────────────────────────────────────
