@@ -74,33 +74,28 @@ const NavLinkInternal = styled(Link)`
   }
 `;
 
-const ForBusinessesLink = styled(NavLinkInternal)`
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1.25rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  font-family: "Righteous", cursive;
-  color: #FFFFFF;
-  background: #E85D5D;
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(232, 93, 93, 0.35);
-  text-decoration: none;
-  transition: background 0.2s, box-shadow 0.2s;
-  &:hover {
-    background: #D44D4D;
-    box-shadow: 0 6px 18px rgba(232, 93, 93, 0.4);
-    color: #FFFFFF;
-  }
-`;
-
 const NavActions = styled.div`
   display: none;
   @media (min-width: 768px) {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1.25rem;
+    margin-left: auto;
+  }
+`;
+
+const TextLink = styled(Link)`
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: "Righteous", cursive;
+  color: #E87C2C;
+  text-decoration: none;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  &:hover {
+    color: #D46B22;
+    border-bottom-color: #D46B22;
   }
 `;
 
@@ -151,8 +146,22 @@ const MobileLink = styled.a`
   }
 `;
 
-export const CommunityNavbar: React.FC = () => {
+interface NavItem {
+  label: string;
+  href: string;
+}
+
+interface CommunityNavbarProps {
+  showAudienceTabs?: boolean;
+  navItems?: NavItem[];
+}
+
+export const CommunityNavbar: React.FC<CommunityNavbarProps> = ({
+  showAudienceTabs = false,
+  navItems,
+}) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const items = navItems ?? COMMUNITY_NAVBAR.nav.filter((item) => item.href !== "/business");
 
   return (
     <Header>
@@ -169,25 +178,26 @@ export const CommunityNavbar: React.FC = () => {
           </LogoLink>
 
           <Nav>
-          {COMMUNITY_NAVBAR.nav
-            .filter((item) => item.href !== "/business")
-            .map((item) =>
-              item.href.startsWith("#") ? (
-                <NavLink key={item.label} href={item.href}>
-                  {item.label}
-                </NavLink>
-              ) : (
-                <NavLinkInternal key={item.label} href={item.href}>
-                  {item.label}
-                </NavLinkInternal>
-              )
-            )}
+          {items.map((item) =>
+            item.href.startsWith("#") ? (
+              <NavLink key={item.label} href={item.href}>
+                {item.label}
+              </NavLink>
+            ) : (
+              <NavLinkInternal key={item.label} href={item.href}>
+                {item.label}
+              </NavLinkInternal>
+            )
+          )}
           </Nav>
         </LeftGroup>
 
-        <NavActions>
-          <ForBusinessesLink href="/business">for Businesses</ForBusinessesLink>
-        </NavActions>
+        {showAudienceTabs && (
+          <NavActions>
+            <TextLink href="/creators">Creators</TextLink>
+            <TextLink href="/business">Businesses</TextLink>
+          </NavActions>
+        )}
 
         <MenuButton type="button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
           <MenuIcon>
@@ -200,18 +210,23 @@ export const CommunityNavbar: React.FC = () => {
 
       {menuOpen && (
         <MobileMenu>
-          {COMMUNITY_NAVBAR.nav
-            .filter((item) => item.href !== "/business")
-            .map((item) =>
-              item.href.startsWith("#") ? (
-                <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)}>{item.label}</MobileLink>
-              ) : (
-                <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)} as={Link}>{item.label}</MobileLink>
-              )
-            )}
-          <ForBusinessesLink href="/business" onClick={() => setMenuOpen(false)}>
-            for Businesses
-          </ForBusinessesLink>
+          {items.map((item) =>
+            item.href.startsWith("#") ? (
+              <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)}>{item.label}</MobileLink>
+            ) : (
+              <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)} as={Link}>{item.label}</MobileLink>
+            )
+          )}
+          {showAudienceTabs && (
+            <>
+              <TextLink href="/creators" onClick={() => setMenuOpen(false)}>
+                Creators
+              </TextLink>
+              <TextLink href="/business" onClick={() => setMenuOpen(false)}>
+                Businesses
+              </TextLink>
+            </>
+          )}
         </MobileMenu>
       )}
     </Header>

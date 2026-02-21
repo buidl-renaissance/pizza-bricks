@@ -28,14 +28,15 @@ const Section = styled.section`
 
 const Title = styled.h1`
   font-family: "Righteous", cursive;
-  font-weight: 900;
+  font-weight: 700;
   font-size: clamp(1.75rem, 4vw, 2.25rem);
+  letter-spacing: -0.02em;
   color: ${({ theme }) => theme.text};
   margin: 0 0 0.5rem;
 `;
 
 const Subtitle = styled.p`
-  font-family: "Righteous", cursive;
+  font-family: "Inter", sans-serif;
   font-size: 1rem;
   color: ${({ theme }) => theme.textSecondary};
   margin: 0 0 2rem;
@@ -110,18 +111,21 @@ const Textarea = styled.textarea`
 `;
 
 const Submit = styled.button`
-  padding: 1rem 1.5rem;
+  padding: 1rem 2rem;
   font-family: "Righteous", cursive;
-  font-weight: 800;
-  font-size: 1rem;
-  color: ${({ theme }) => theme.onAccent ?? "#fff"};
-  background: ${({ theme }) => theme.accent};
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #FFFFFF;
+  background: #E85D5D;
   border: none;
-  border-radius: ${({ theme }) => theme.borderRadius};
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(232, 93, 93, 0.35);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, box-shadow 0.2s;
   &:hover:not(:disabled) {
-    background: ${({ theme }) => theme.accentHover};
+    background: #D44D4D;
+    box-shadow: 0 6px 18px rgba(232, 93, 93, 0.4);
+    color: #FFFFFF;
   }
   &:disabled {
     opacity: 0.7;
@@ -130,6 +134,7 @@ const Submit = styled.button`
 `;
 
 const Message = styled.p<{ $error?: boolean }>`
+  font-family: "Inter", sans-serif;
   font-size: 0.95rem;
   margin: 0;
   color: ${({ theme, $error }) => ($error ? theme.danger : theme.success)};
@@ -138,7 +143,7 @@ const Message = styled.p<{ $error?: boolean }>`
 const BackLink = styled(Link)`
   display: inline-block;
   margin-top: 1.5rem;
-  font-family: "Righteous", cursive;
+  font-family: "Inter", sans-serif;
   font-size: 0.9rem;
   color: ${({ theme }) => theme.accent};
   text-decoration: none;

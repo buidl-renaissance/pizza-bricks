@@ -138,13 +138,15 @@ const storeUser = (user: User | null) => {
 };
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  // Initialize with null so server and client first paint match (avoids hydration error).
+  // Stored user is restored in useEffect below.
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [needsPhone, setNeedsPhone] = useState<boolean>(false);
   const authAttemptedRef = useRef(false);
   const userRef = useRef<User | null>(user);
-  
+
   // Keep userRef in sync with user state
   useEffect(() => {
     userRef.current = user;
@@ -230,19 +232,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
-    
+
+    // Restore stored user immediately so UI can show it while we verify session (avoids flash of logged-out).
+    const storedUser = getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+      console.log('✅ Restored stored user:', storedUser.id);
+    }
+
     const fetchUser = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         console.log('🔍 Starting user fetch...');
-        
-        // Get stored user (already set as initial state, so no need to setUser again)
-        const storedUser = getStoredUser();
-        if (storedUser) {
-          console.log('✅ Found stored user:', storedUser.id);
-        }
         
         // First, check for Renaissance context injection
         const renaissanceCtx = getRenaissanceContext();

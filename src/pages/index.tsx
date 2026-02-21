@@ -39,7 +39,7 @@ const HomePage: React.FC = () => {
       </Head>
       <ThemeProvider theme={pizzaLandingTheme}>
         <div style={{ minHeight: "100vh", background: pizzaLandingTheme.background }}>
-          <CommunityNavbar />
+          <CommunityNavbar showAudienceTabs />
           <PageWrap style={{ paddingTop: "4rem" }}>
             <CommunityHero />
             <CommunityHowItWorks />
