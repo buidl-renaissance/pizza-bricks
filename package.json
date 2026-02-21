@@ -15,6 +15,7 @@
     "gmail-setup": "npx tsx scripts/gmail-setup.ts",
     "seed-demo": "npx tsx scripts/seed-demo-vendors.ts",
     "seed-demo-contributors": "npx tsx scripts/seed-demo-contributors.ts",
+    "seed-demo-campaigns": "npx tsx scripts/seed-demo-campaigns.ts",
     "test-onboard": "npx tsx scripts/create-test-onboarding.ts",
     "reset-demo": "npx tsx scripts/reset-demo-data.ts"
   },

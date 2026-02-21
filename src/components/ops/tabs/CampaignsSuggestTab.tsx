@@ -170,7 +170,7 @@ export function CampaignsSuggestTab() {
   return (
     <div>
       <Section>
-        <SectionTitle>Suggest Campaign</SectionTitle>
+        <SectionTitle>Campaigns</SectionTitle>
         <SectionDesc>Suggestions consider your local creator network to match campaigns with the right participants.</SectionDesc>
         <SuggestButton type="button" onClick={handleSuggest} disabled={suggesting} $loading={suggesting}>
           {suggesting ? 'Generating…' : 'Suggest New Campaign'}

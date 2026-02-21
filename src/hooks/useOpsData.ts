@@ -110,6 +110,12 @@ export function useActivityLog(opts: { type?: string; triggeredBy?: 'agent' | 'm
   return { events, loading, reload };
 }
 
+/** Activity events for live/stream-style display. Uses same API as useActivityLog; connected is false when no real-time stream. */
+export function useActivityStream(limit = 20) {
+  const { events, loading } = useActivityLog({ limit });
+  return { events, connected: !loading };
+}
+
 export function useAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);

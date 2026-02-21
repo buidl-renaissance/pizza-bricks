@@ -237,7 +237,7 @@ export function CampaignsEventsTab() {
         {loading ? (
           <EmptyState>Loading…</EmptyState>
         ) : activeOrSuggested.length === 0 ? (
-          <EmptyState>No upcoming campaign events. Go to Suggest Campaign to create one.</EmptyState>
+          <EmptyState>No upcoming campaign events. Go to Campaigns to create one.</EmptyState>
         ) : (
           <EventGrid>
             {activeOrSuggested.map(c => (

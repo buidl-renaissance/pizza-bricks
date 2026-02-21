@@ -44,7 +44,10 @@ export async function triggerOutreachEmailForPublishedSite(
     }
   }
   const vendorId = meta.vendorId;
-  if (!vendorId) return { sent: false }; // not from outreach flow, skip silently
+  if (!vendorId) {
+    console.log(`[outreach-auto-send] Prospect ${prospectId} has no metadata.vendorId — skipping (not from outreach Prepare flow)`);
+    return { sent: false };
+  }
 
   const db = getDb();
   let vendor = await db.select().from(vendors).where(eq(vendors.id, vendorId)).then((r) => r[0] ?? null);

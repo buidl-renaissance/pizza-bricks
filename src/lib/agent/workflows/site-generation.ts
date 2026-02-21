@@ -81,9 +81,8 @@ export async function startSiteGenerationForProspect(prospectId: string): Promis
         });
         // Auto-send outreach email when site was built from Vendor Outreach (Prepare) flow
         if (result.url) {
-          triggerOutreachEmailForPublishedSite(prospectId, result.url).then((r) => {
-            if (!r.sent && r.error) console.warn('[site-generation] Auto-send outreach:', r.error);
-          });
+          const r = await triggerOutreachEmailForPublishedSite(prospectId, result.url);
+          if (!r.sent && r.error) console.warn('[site-generation] Auto-send outreach:', r.error);
         }
       }
     })

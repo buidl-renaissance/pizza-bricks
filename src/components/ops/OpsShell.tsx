@@ -11,8 +11,7 @@ const SIDEBAR_NARROW_WIDTH = 56;
 const OverviewTab = dynamic(() => import('./tabs/OverviewTab').then(m => ({ default: m.OverviewTab })), { ssr: false });
 const PipelineTab = dynamic(() => import('./tabs/PipelineTab').then(m => ({ default: m.PipelineTab })), { ssr: false });
 const ProspectsTab = dynamic(() => import('./tabs/ProspectsTab').then(m => ({ default: m.ProspectsTab })), { ssr: false });
-const ChannelsTab = dynamic(() => import('./tabs/ChannelsTab').then(m => ({ default: m.ChannelsTab })), { ssr: false });
-const ActivityTab = dynamic(() => import('./tabs/ActivityTab').then(m => ({ default: m.ActivityTab })), { ssr: false });
+const ActivityChannelsTab = dynamic(() => import('./tabs/ActivityChannelsTab').then(m => ({ default: m.ActivityChannelsTab })), { ssr: false });
 const OutreachTab = dynamic(() => import('./tabs/OutreachTab').then(m => ({ default: m.OutreachTab })), { ssr: false });
 const CampaignsSuggestTab = dynamic(() => import('./tabs/CampaignsSuggestTab').then(m => ({ default: m.CampaignsSuggestTab })), { ssr: false });
 const CampaignsEventsTab = dynamic(() => import('./tabs/CampaignsEventsTab').then(m => ({ default: m.CampaignsEventsTab })), { ssr: false });
@@ -29,8 +28,8 @@ const TOP_LEVEL_TABS: readonly Tab[] = [
   { id: 'prospects', label: 'Prospects', icon: '📇' },
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
-  { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
-  { id: 'campaigns-outreach', label: 'Vendor Outreach', icon: '📤' },
+  { id: 'campaigns-suggest', label: 'Campaigns', icon: '🎯' },
+  { id: 'campaigns-outreach', label: 'Vendors', icon: '📤' },
   { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
   { id: 'campaigns-contributors', label: 'Local Creators', icon: '👥' },
   { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
@@ -333,6 +332,8 @@ export function OpsShell() {
       router.replace('/ops?tab=campaigns-recruiting', undefined, { shallow: true });
     } else if (router.query.tab === 'outreach') {
       router.replace('/ops?tab=campaigns-outreach', undefined, { shallow: true });
+    } else if (router.query.tab === 'channels') {
+      router.replace('/ops?tab=activity', undefined, { shallow: true });
     }
   }, [router.query.tab, router]);
 
@@ -536,8 +537,7 @@ export function OpsShell() {
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'pipeline' && <PipelineTab />}
         {activeTab === 'prospects' && <ProspectsTab />}
-        {activeTab === 'channels' && <ChannelsTab />}
-        {activeTab === 'activity' && <ActivityTab />}
+        {activeTab === 'activity' && <ActivityChannelsTab />}
         {activeTab === 'campaigns-outreach' && <OutreachTab />}
         {activeTab === 'campaigns-suggest' && <CampaignsSuggestTab />}
         {activeTab === 'campaigns-events' && <CampaignsEventsTab />}

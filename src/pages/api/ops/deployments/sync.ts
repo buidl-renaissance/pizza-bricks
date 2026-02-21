@@ -97,13 +97,14 @@ export default async function handler(
         });
         // Auto-send outreach email when site was built from Vendor Outreach (Prepare) flow
         if (url) {
-          triggerOutreachEmailForPublishedSite(site.prospectId, url).then((result) => {
-            if (result.sent) {
-              console.log(`[deployments/sync] Auto-sent outreach email for prospect ${site.prospectId}`);
-            } else if (result.error) {
-              console.warn(`[deployments/sync] Auto-send outreach skipped/failed: ${result.error}`);
-            }
-          });
+          const result = await triggerOutreachEmailForPublishedSite(site.prospectId, url);
+          if (result.sent) {
+            console.log(`[deployments/sync] Auto-sent outreach email for prospect ${site.prospectId}`);
+          } else if (result.error) {
+            console.warn(`[deployments/sync] Auto-send outreach skipped/failed: ${result.error}`);
+          } else {
+            console.log(`[deployments/sync] Auto-send outreach skipped for prospect ${site.prospectId} (e.g. not from outreach flow)`);
+          }
         }
         summary.updated += 1;
       } else if (deployment.readyState === 'ERROR' || deployment.readyState === 'CANCELED') {
