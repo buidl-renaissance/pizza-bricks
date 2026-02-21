@@ -26,6 +26,12 @@ const Container = styled.div`
   height: 4rem;
 `;
 
+const LeftGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+`;
+
 const LogoLink = styled(Link)`
   display: flex;
   align-items: center;
@@ -68,30 +74,33 @@ const NavLinkInternal = styled(Link)`
   }
 `;
 
+const ForBusinessesLink = styled(NavLinkInternal)`
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-family: "Righteous", cursive;
+  color: #FFFFFF;
+  background: #E85D5D;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(232, 93, 93, 0.35);
+  text-decoration: none;
+  transition: background 0.2s, box-shadow 0.2s;
+  &:hover {
+    background: #D44D4D;
+    box-shadow: 0 6px 18px rgba(232, 93, 93, 0.4);
+    color: #FFFFFF;
+  }
+`;
+
 const NavActions = styled.div`
   display: none;
   @media (min-width: 768px) {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-  }
-`;
-
-const CtaButton = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  font-family: "Righteous", cursive;
-  color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
-  background: ${({ theme }) => theme.accent};
-  border-radius: ${({ theme }) => theme.borderRadius};
-  text-decoration: none;
-  transition: background 0.2s;
-  &:hover {
-    background: ${({ theme }) => theme.accentHover};
-    color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
   }
 `;
 
@@ -142,55 +151,42 @@ const MobileLink = styled.a`
   }
 `;
 
-const MobileCta = styled(Link)`
-  display: block;
-  width: 100%;
-  text-align: center;
-  padding: 0.75rem 1rem;
-  font-weight: 700;
-  font-family: "Righteous", cursive;
-  color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
-  background: ${({ theme }) => theme.accent};
-  border-radius: ${({ theme }) => theme.borderRadius};
-  text-decoration: none;
-  &:hover {
-    background: ${({ theme }) => theme.accentHover};
-    color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
-  }
-`;
-
 export const CommunityNavbar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <Header>
       <Container>
-        <LogoLink href="/">
-          <Image
-            src="/pizza-bricks.png"
-            alt={COMMUNITY_NAVBAR.logo}
-            width={140}
-            height={36}
-            priority
-          />
-        </LogoLink>
+        <LeftGroup>
+          <LogoLink href="/">
+            <Image
+              src="/pizza-bricks.png"
+              alt={COMMUNITY_NAVBAR.logo}
+              width={140}
+              height={36}
+              priority
+            />
+          </LogoLink>
 
-        <Nav>
-          {COMMUNITY_NAVBAR.nav.map((item) =>
-            item.href.startsWith("#") ? (
-              <NavLink key={item.label} href={item.href}>
-                {item.label}
-              </NavLink>
-            ) : (
-              <NavLinkInternal key={item.label} href={item.href}>
-                {item.label}
-              </NavLinkInternal>
-            )
-          )}
-        </Nav>
+          <Nav>
+          {COMMUNITY_NAVBAR.nav
+            .filter((item) => item.href !== "/business")
+            .map((item) =>
+              item.href.startsWith("#") ? (
+                <NavLink key={item.label} href={item.href}>
+                  {item.label}
+                </NavLink>
+              ) : (
+                <NavLinkInternal key={item.label} href={item.href}>
+                  {item.label}
+                </NavLinkInternal>
+              )
+            )}
+          </Nav>
+        </LeftGroup>
 
         <NavActions>
-          <CtaButton href="/#join-pod">{COMMUNITY_NAVBAR.cta}</CtaButton>
+          <ForBusinessesLink href="/business">for Businesses</ForBusinessesLink>
         </NavActions>
 
         <MenuButton type="button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
@@ -204,14 +200,18 @@ export const CommunityNavbar: React.FC = () => {
 
       {menuOpen && (
         <MobileMenu>
-          {COMMUNITY_NAVBAR.nav.map((item) => (
-            item.href.startsWith("#") ? (
-              <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)}>{item.label}</MobileLink>
-            ) : (
-              <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)} as={Link}>{item.label}</MobileLink>
-            )
-          ))}
-          <MobileCta href="/#join-pod" onClick={() => setMenuOpen(false)}>{COMMUNITY_NAVBAR.cta}</MobileCta>
+          {COMMUNITY_NAVBAR.nav
+            .filter((item) => item.href !== "/business")
+            .map((item) =>
+              item.href.startsWith("#") ? (
+                <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)}>{item.label}</MobileLink>
+              ) : (
+                <MobileLink key={item.label} href={item.href} onClick={() => setMenuOpen(false)} as={Link}>{item.label}</MobileLink>
+              )
+            )}
+          <ForBusinessesLink href="/business" onClick={() => setMenuOpen(false)}>
+            for Businesses
+          </ForBusinessesLink>
         </MobileMenu>
       )}
     </Header>

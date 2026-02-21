@@ -10,7 +10,7 @@ export const COMMUNITY_NAVBAR = {
     { label: "Why", href: "#why" },
     { label: "Owners", href: "#owners" },
     { label: "FAQ", href: "#faq" },
-    { label: "Apply", href: "/business" },
+    { label: "for Businesses", href: "/business" },
   ],
   cta: "Join the Pod",
 };
