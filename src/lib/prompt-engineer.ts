@@ -77,7 +77,8 @@ Design requirements:
 - Apply the brand voice in all copy
 - Sections: Hero, Menu, About/Story, Contact/Order
 - Include a sticky navigation header
-- Include a footer with contact info and social links`;
+- Include a footer with contact info and social links
+- Hero section: Include an appropriate full-width background image. Use the provided hero URL if given; otherwise choose a high-quality Unsplash image (https://images.unsplash.com/photo-...) that matches the business type, cuisine, and brand (e.g., pizza/tacos for restaurants, food truck for mobile vendors, catering spread for home caterers). Ensure the image has good contrast with overlay text.`;
 
   const menuLines = brief.menu
     .map(
@@ -124,6 +125,9 @@ ${socialLines}
 
 CUSTOMER REVIEWS
 ${reviewLines}
+
+HERO / BACKGROUND IMAGE
+${brief.media?.hero ? `  Use this image for the hero background: ${brief.media.hero}` : '  Choose an appropriate Unsplash image URL that matches the business type and cuisine above (e.g., appetizing food photos, food truck, or catering spread). Use a direct Unsplash CDN URL like https://images.unsplash.com/photo-...'}
 
 Generate the full Next.js + Tailwind site now. Remember: output ONLY the JSON object, nothing else.`;
 
