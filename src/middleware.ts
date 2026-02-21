@@ -13,11 +13,29 @@ export const middleware = paymentMiddleware(
         description: 'Pizza Bricks — place an order with your merchant',
       },
     },
+    '/api/ops/sites/[id]/update': {
+      price: '$0.50',
+      network: 'base',
+      config: {
+        description: 'Pizza Bricks — prompt-based website update',
+      },
+    },
+    '/api/campaigns/[id]/activate': {
+      price: '$0.25',
+      network: 'base',
+      config: {
+        description: 'Pizza Bricks — campaign activation (deployment)',
+      },
+    },
   },
   facilitator,
 );
 
 export const config = {
-  matcher: ['/api/merchant/order'],
+  matcher: [
+    '/api/merchant/order',
+    '/api/ops/sites/:path*',
+    '/api/campaigns/:path*',
+  ],
   runtime: 'nodejs',
 };

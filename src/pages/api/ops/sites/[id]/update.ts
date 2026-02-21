@@ -6,6 +6,11 @@ import { deployToVercel } from '@/lib/vercel-deployer';
 import { fetchDeploymentSource } from '@/lib/vercel-deployer';
 import { applySiteEdits } from '@/lib/site-editor';
 
+/**
+ * x402-protected website update endpoint ($0.50 USDC on Base).
+ * Middleware in src/middleware.ts verifies payment before this handler runs.
+ * Payment proof is set on the response header X-PAYMENT-RESPONSE.
+ */
 function buildProspectDocument(prospect: Awaited<ReturnType<typeof getProspect>>): string {
   if (!prospect) return '';
   const parts = [
@@ -102,6 +107,8 @@ export default async function handler(
         triggeredBy: 'manual',
         metadata: { siteId, url: result.url, prompt },
       });
+      const paymentTxRegen = req.headers['x-payment-response'] as string | undefined;
+      if (paymentTxRegen) console.log(`[x402] Website update paid — siteId: ${siteId}, tx: ${paymentTxRegen}`);
       return res.status(200).json({
         success: true,
         url: result.url,
@@ -151,6 +158,8 @@ export default async function handler(
       metadata: { siteId, url, prompt },
     });
 
+    const paymentTx = req.headers['x-payment-response'] as string | undefined;
+    if (paymentTx) console.log(`[x402] Website update paid — siteId: ${siteId}, url: ${url}, tx: ${paymentTx}`);
     return res.status(200).json({ success: true, url });
   } catch (err) {
     console.error('[sites/update] error:', err);

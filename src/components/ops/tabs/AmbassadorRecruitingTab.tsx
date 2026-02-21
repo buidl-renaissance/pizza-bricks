@@ -153,7 +153,7 @@ export function AmbassadorRecruitingTab() {
   return (
     <div>
       <Section>
-        <SectionTitle>Ambassador recruiting</SectionTitle>
+        <SectionTitle>Recruiting</SectionTitle>
         <IntroText>
           People who sign up at the public page appear here. Add them to Local Creators to include them in campaign outreach.
         </IntroText>

@@ -30,7 +30,6 @@ const TOP_LEVEL_TABS: readonly Tab[] = [
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
   { id: 'outreach', label: 'Outreach', icon: '📤' },
-  { id: 'ambassador-recruiting', label: 'Ambassador Recruiting', icon: '🎪' },
 ];
 
 const NAV_GROUPS: readonly NavGroup[] = [
@@ -42,6 +41,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
       { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
       { id: 'campaigns-contributors', label: 'Local Creators', icon: '👥' },
+      { id: 'campaigns-recruiting', label: 'Recruiting', icon: '🎪' },
       { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
       { id: 'campaigns-assets', label: 'Event Assets', icon: '🖼' },
       { id: 'campaigns-analytics', label: 'Analytics', icon: '📈' },
@@ -329,6 +329,13 @@ export function OpsShell() {
   const campaignsButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  // Redirect legacy ambassador-recruiting URL to campaigns recruiting
+  useEffect(() => {
+    if (router.query.tab === 'ambassador-recruiting') {
+      router.replace('/ops?tab=campaigns-recruiting', undefined, { shallow: true });
+    }
+  }, [router.query.tab, router]);
+
   useEffect(() => {
     for (const g of NAV_GROUPS) {
       if (isTabInGroup(activeTab, g)) {
@@ -532,7 +539,7 @@ export function OpsShell() {
         {activeTab === 'campaigns-suggest' && <CampaignsSuggestTab />}
         {activeTab === 'campaigns-events' && <CampaignsEventsTab />}
         {activeTab === 'campaigns-contributors' && <CampaignsContributorsTab />}
-        {activeTab === 'ambassador-recruiting' && <AmbassadorRecruitingTab />}
+        {activeTab === 'campaigns-recruiting' && <AmbassadorRecruitingTab />}
         {activeTab === 'campaigns-ambassadors' && <CampaignsAmbassadorsTab />}
         {activeTab === 'campaigns-assets' && <CampaignsAssetsTab />}
         {activeTab === 'campaigns-analytics' && <CampaignsAnalyticsTab />}

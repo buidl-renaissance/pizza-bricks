@@ -3,6 +3,11 @@ import { requireAdmin } from '@/lib/ops-auth';
 import { getCampaign, updateCampaign, insertCampaignEvent, getCampaignEventByCampaignId } from '@/db/campaigns';
 import { insertActivityEvent } from '@/db/ops';
 
+/**
+ * x402-protected campaign activation endpoint ($0.25 USDC on Base).
+ * Middleware in src/middleware.ts verifies payment before this handler runs.
+ * Payment proof is set on the response header X-PAYMENT-RESPONSE.
+ */
 const RENAISSANCE_EVENTS_API_URL = process.env.RENAISSANCE_EVENTS_API_URL || 'http://localhost:3002';
 const PIZZA_BRICKS_PUBLIC_URL = process.env.NEXT_PUBLIC_BASE_URL
   || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
@@ -102,6 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata: { campaignId: campaign.id, publishedEventId },
     });
 
+    const paymentTx = req.headers['x-payment-response'] as string | undefined;
+    if (paymentTx) console.log(`[x402] Campaign activate paid — campaignId: ${campaign.id}, tx: ${paymentTx}`);
     return res.status(200).json({
       success: true,
       campaignId: campaign.id,
