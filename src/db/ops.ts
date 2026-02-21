@@ -1,4 +1,4 @@
-import { eq, desc, and, sql, count, inArray, isNull, like } from 'drizzle-orm';
+import { eq, desc, and, sql, count, inArray, isNull, like, sum } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from './drizzle';
 import {
@@ -7,6 +7,8 @@ import {
   emailLogs,
   generatedSites,
   agentState,
+  agentTicks,
+  vendorOnboardings,
 } from './schema';
 import type {
   PipelineStage,
@@ -19,6 +21,8 @@ import type {
   GeneratedSiteStatus,
   AgentStatus,
 } from './schema';
+
+export type AgentTick = typeof agentTicks.$inferSelect;
 import { broadcastActivity } from '@/lib/sse-broadcast';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -493,6 +497,82 @@ export async function setAgentStatus(
 
 export async function heartbeat(): Promise<void> {
   await updateAgentState({ lastHeartbeat: new Date() });
+}
+
+// ── Agent Ticks ───────────────────────────────────────────────────────────────
+export async function insertAgentTick(data: {
+  startedAt: Date;
+  discovered?: number;
+  emailsSent?: number;
+  followUpsSent?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: string;
+  outflowTxHash?: string;
+  outflowAmountUsdc?: string;
+  status?: string;
+}): Promise<AgentTick> {
+  const db = getDb();
+  const id = uuidv4();
+  const row = {
+    id,
+    startedAt: data.startedAt,
+    completedAt: new Date(),
+    discovered: data.discovered ?? 0,
+    emailsSent: data.emailsSent ?? 0,
+    followUpsSent: data.followUpsSent ?? 0,
+    inputTokens: data.inputTokens ?? 0,
+    outputTokens: data.outputTokens ?? 0,
+    estimatedCostUsd: data.estimatedCostUsd ?? null,
+    outflowTxHash: data.outflowTxHash ?? null,
+    outflowAmountUsdc: data.outflowAmountUsdc ?? null,
+    status: data.status ?? 'completed',
+  };
+  await db.insert(agentTicks).values(row);
+  return row;
+}
+
+export async function listAgentTicks(limit = 20): Promise<AgentTick[]> {
+  const db = getDb();
+  return db.select().from(agentTicks).orderBy(desc(agentTicks.startedAt)).limit(limit);
+}
+
+export async function getTickFinanceSummary(): Promise<{
+  totalTicks: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalAiCostUsd: number;
+  totalOutflowUsdc: number;
+  revenueVendorFees: number;
+}> {
+  const db = getDb();
+
+  const [tickRows, onboardingRows] = await Promise.all([
+    db.select({
+      totalTicks: count(),
+      totalInputTokens: sum(agentTicks.inputTokens),
+      totalOutputTokens: sum(agentTicks.outputTokens),
+      totalOutflowUsdc: sum(agentTicks.outflowAmountUsdc),
+    }).from(agentTicks),
+    db.select({ count: count() })
+      .from(vendorOnboardings)
+      .where(sql`${vendorOnboardings.feePaidAt} IS NOT NULL`),
+  ]);
+
+  const t = tickRows[0];
+
+  // Sum up estimatedCostUsd (stored as text) manually
+  const costRows = await db.select({ cost: agentTicks.estimatedCostUsd }).from(agentTicks);
+  const totalAiCostUsd = costRows.reduce((acc, r) => acc + parseFloat(r.cost ?? '0'), 0);
+
+  return {
+    totalTicks: Number(t.totalTicks ?? 0),
+    totalInputTokens: Number(t.totalInputTokens ?? 0),
+    totalOutputTokens: Number(t.totalOutputTokens ?? 0),
+    totalAiCostUsd,
+    totalOutflowUsdc: Number(t.totalOutflowUsdc ?? 0),
+    revenueVendorFees: Number(onboardingRows[0]?.count ?? 0),
+  };
 }
 
 // ── Metric Overview ───────────────────────────────────────────────────────────

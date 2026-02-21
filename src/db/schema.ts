@@ -235,6 +235,25 @@ export const vendorOnboardings = sqliteTable('vendor_onboardings', {
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
 });
 
+// ── Agent Ticks — one row per autonomous agent run ────────────────────────────
+export const agentTicks = sqliteTable('agent_ticks', {
+  id: text('id').primaryKey(),
+  startedAt: integer('startedAt', { mode: 'timestamp' }).notNull(),
+  completedAt: integer('completedAt', { mode: 'timestamp' }),
+  // Workflow results
+  discovered: integer('discovered').default(0).notNull(),
+  emailsSent: integer('emailsSent').default(0).notNull(),
+  followUpsSent: integer('followUpsSent').default(0).notNull(),
+  // AI cost tracking
+  inputTokens: integer('inputTokens').default(0).notNull(),
+  outputTokens: integer('outputTokens').default(0).notNull(),
+  estimatedCostUsd: text('estimatedCostUsd'),  // e.g. "0.002300"
+  // Autonomous on-chain spend (proves self-sustaining outflow)
+  outflowTxHash: text('outflowTxHash'),
+  outflowAmountUsdc: text('outflowAmountUsdc'),
+  status: text('status').notNull().default('completed'), // 'completed' | 'failed'
+});
+
 // ── Convenience types ─────────────────────────────────────────────────────────
 export type Vendor = typeof vendors.$inferSelect;
 export type NewVendor = typeof vendors.$inferInsert;

@@ -3,7 +3,10 @@ import {
   setAgentStatus,
   heartbeat,
   insertActivityEvent,
+  insertAgentTick,
 } from '@/db/ops';
+import { resetUsage, getUsage } from '@/lib/usage-tracker';
+import { autonomousAgentSpend } from '@/lib/agent-spend';
 import { runDiscovery } from './workflows/discovery';
 import { runEmailOutreach } from './workflows/email-outreach';
 import { runFollowUp } from './workflows/follow-up';
@@ -45,6 +48,9 @@ export async function runAgentTick(): Promise<{
   }
 
   await heartbeat();
+
+  const tickStartedAt = new Date();
+  resetUsage();
 
   const results: Record<string, number> = {};
 
@@ -90,6 +96,26 @@ export async function runAgentTick(): Promise<{
   // Note: site generation is intentionally NOT called in the tick since it's
   // a long-running operation. It's triggered via manual action or a dedicated
   // background queue. The workflow is available via actions/trigger.ts.
+
+  // Record AI usage and trigger autonomous on-chain spend
+  const usage = getUsage();
+  const spend = await autonomousAgentSpend().catch(err => {
+    console.error('[agent-tick] on-chain spend error (non-fatal):', err);
+    return null;
+  });
+
+  await insertAgentTick({
+    startedAt: tickStartedAt,
+    discovered: results.discovered ?? 0,
+    emailsSent: results.emailsSent ?? 0,
+    followUpsSent: results.followUpsSent ?? 0,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    estimatedCostUsd: usage.estimatedCostUsd,
+    outflowTxHash: spend?.txHash ?? undefined,
+    outflowAmountUsdc: spend?.amountUsdc ?? undefined,
+    status: 'completed',
+  });
 
   return { skipped: false, results };
 }

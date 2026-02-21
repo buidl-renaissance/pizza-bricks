@@ -1,11 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireAdmin } from '@/lib/ops-auth';
+import { requireRead } from '@/lib/ops-auth';
 import { listGeneratedSites, getProspect } from '@/db/ops';
 import type { GeneratedSiteStatus } from '@/db/schema';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAdmin(req, res)) return;
+  if (!await requireRead(req, res)) return;
 
   const { prospectId, status, limit = '50' } = req.query;
   const sites = await listGeneratedSites({

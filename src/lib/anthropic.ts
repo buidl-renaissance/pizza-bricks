@@ -1,9 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { addUsage } from './usage-tracker';
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
   return new Anthropic({ apiKey });
+}
+
+async function createMessage(
+  params: Parameters<Anthropic['messages']['create']>[0],
+): ReturnType<Anthropic['messages']['create']> {
+  const client = getClient();
+  const message = await client.messages.create(params);
+  if (message.usage) {
+    addUsage(message.usage.input_tokens, message.usage.output_tokens);
+  }
+  return message;
 }
 
 export interface MenuItem {
@@ -63,8 +75,7 @@ Each element: { "name": "...", "description": "...", "price": "..." }
 If price is unknown, omit the price field.
 If you cannot determine any menu items, return an empty array [].`;
 
-  const client = getClient();
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
@@ -115,8 +126,7 @@ Intent definitions:
 - "needs_follow_up": vendor is on the fence, asks for more info, or gives a partial response
 - "unclear": auto-reply, spam, or impossible to determine intent`;
 
-  const client = getClient();
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 256,
     messages: [{ role: 'user', content: prompt }],
@@ -198,8 +208,7 @@ Return ONLY a JSON object with no markdown formatting, no code fences:
 
 The bodyHtml should be simple HTML (p tags, br, b/em for emphasis). No inline styles or complex markup.`;
 
-  const client = getClient();
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
