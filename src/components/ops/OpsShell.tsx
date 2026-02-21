@@ -17,9 +17,6 @@ const CampaignsSuggestTab = dynamic(() => import('./tabs/CampaignsSuggestTab').t
 const CampaignsEventsTab = dynamic(() => import('./tabs/CampaignsEventsTab').then(m => ({ default: m.CampaignsEventsTab })), { ssr: false });
 const CampaignsContributorsTab = dynamic(() => import('./tabs/CampaignsContributorsTab').then(m => ({ default: m.CampaignsContributorsTab })), { ssr: false });
 const CampaignsAmbassadorsTab = dynamic(() => import('./tabs/CampaignsAmbassadorsTab').then(m => ({ default: m.CampaignsAmbassadorsTab })), { ssr: false });
-const CampaignsAssetsTab = dynamic(() => import('./tabs/CampaignsAssetsTab').then(m => ({ default: m.CampaignsAssetsTab })), { ssr: false });
-const CampaignsAnalyticsTab = dynamic(() => import('./tabs/CampaignsAnalyticsTab').then(m => ({ default: m.CampaignsAnalyticsTab })), { ssr: false });
-const AmbassadorRecruitingTab = dynamic(() => import('./tabs/AmbassadorRecruitingTab').then(m => ({ default: m.AmbassadorRecruitingTab })), { ssr: false });
 const SettingsRegisterAgentTab = dynamic(() => import('./tabs/SettingsRegisterAgentTab').then(m => ({ default: m.SettingsRegisterAgentTab })), { ssr: false });
 
 type Tab = { id: string; label: string; icon: string };
@@ -30,24 +27,14 @@ const TOP_LEVEL_TABS: readonly Tab[] = [
   { id: 'pipeline', label: 'Pipeline', icon: '🔀' },
   { id: 'channels', label: 'Channels', icon: '📡' },
   { id: 'activity', label: 'Activity', icon: '📋' },
-  { id: 'outreach', label: 'Outreach', icon: '📤' },
+  { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
+  { id: 'campaigns-outreach', label: 'Vendor Outreach', icon: '📤' },
+  { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
+  { id: 'campaigns-contributors', label: 'Local Creators', icon: '👥' },
+  { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
 ];
 
 const NAV_GROUPS: readonly NavGroup[] = [
-  {
-    id: 'campaigns',
-    label: 'Campaigns',
-    icon: '🎯',
-    tabs: [
-      { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
-      { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
-      { id: 'campaigns-contributors', label: 'Local Creators', icon: '👥' },
-      { id: 'campaigns-recruiting', label: 'Recruiting', icon: '🎪' },
-      { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
-      { id: 'campaigns-assets', label: 'Event Assets', icon: '🖼' },
-      { id: 'campaigns-analytics', label: 'Analytics', icon: '📈' },
-    ],
-  },
   {
     id: 'settings',
     label: 'Settings',
@@ -335,14 +322,15 @@ export function OpsShell() {
     return set;
   });
   const [openPopoverGroupId, setOpenPopoverGroupId] = useState<string | null>(null);
-  const campaignsButtonRef = useRef<HTMLButtonElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Redirect legacy ambassador-recruiting URL to campaigns recruiting
+  // Redirect legacy tab URLs
   useEffect(() => {
     if (router.query.tab === 'ambassador-recruiting') {
       router.replace('/ops?tab=campaigns-recruiting', undefined, { shallow: true });
+    } else if (router.query.tab === 'outreach') {
+      router.replace('/ops?tab=campaigns-outreach', undefined, { shallow: true });
     }
   }, [router.query.tab, router]);
 
@@ -361,7 +349,6 @@ export function OpsShell() {
       const target = e.target as Node;
       if (
         popoverRef.current?.contains(target) ||
-        campaignsButtonRef.current?.contains(target) ||
         settingsButtonRef.current?.contains(target)
       ) {
         return;
@@ -381,14 +368,11 @@ export function OpsShell() {
     });
   };
 
-  const campaignsGroup = NAV_GROUPS[0];
-  const settingsGroup = NAV_GROUPS[1];
+  const settingsGroup = NAV_GROUPS[0];
   const [popoverTop, setPopoverTop] = useState(0);
 
   useEffect(() => {
-    if (openPopoverGroupId === 'campaigns' && campaignsButtonRef.current) {
-      setPopoverTop(campaignsButtonRef.current.getBoundingClientRect().bottom);
-    } else if (openPopoverGroupId === 'settings' && settingsButtonRef.current) {
+    if (openPopoverGroupId === 'settings' && settingsButtonRef.current) {
       setPopoverTop(settingsButtonRef.current.getBoundingClientRect().bottom);
     }
   }, [openPopoverGroupId]);
@@ -421,16 +405,15 @@ export function OpsShell() {
           {NAV_GROUPS.map(group => {
             const isExpanded = expandedGroups.has(group.id);
             const showSubItems = !isNarrow && isExpanded;
-            const isCampaigns = group.id === 'campaigns';
             const isSettings = group.id === 'settings';
-            const usePopoverWhenNarrow = isNarrow && (isCampaigns || isSettings);
+            const usePopoverWhenNarrow = isNarrow && isSettings;
 
             return (
               <NavGroup key={group.id}>
                 {usePopoverWhenNarrow ? (
                   <PopoverAnchor>
                     <NavGroupHeader
-                      ref={isCampaigns ? campaignsButtonRef : settingsButtonRef}
+                      ref={settingsButtonRef}
                       type="button"
                       $expanded={false}
                       $narrow={true}
@@ -445,7 +428,7 @@ export function OpsShell() {
                     {openPopoverGroupId === group.id && (
                       <Popover
                         ref={popoverRef}
-                        style={{ top: (isCampaigns ? campaignsButtonRef : settingsButtonRef).current?.getBoundingClientRect().bottom ?? 8 }}
+                        style={{ top: settingsButtonRef.current?.getBoundingClientRect().bottom ?? 8 }}
                       >
                         {group.tabs.map(tab => (
                           <PopoverItem
@@ -468,6 +451,7 @@ export function OpsShell() {
                 ) : (
                   <>
                     <NavGroupHeader
+                      ref={isSettings ? settingsButtonRef : undefined}
                       type="button"
                       $expanded={isExpanded}
                       $narrow={isNarrow}
@@ -519,25 +503,6 @@ export function OpsShell() {
         </BackLink>
       </Sidebar>
 
-      {openPopoverGroupId === 'campaigns' && campaignsGroup && (
-        <Popover ref={popoverRef} style={{ top: popoverTop }}>
-          {campaignsGroup.tabs.map(tab => (
-            <PopoverItem
-              key={tab.id}
-              href={`/ops?tab=${tab.id}`}
-              $active={activeTab === tab.id}
-              onClick={(e) => {
-                e.preventDefault();
-                router.push(`/ops?tab=${tab.id}`, undefined, { shallow: true });
-                setOpenPopoverGroupId(null);
-              }}
-            >
-              <NavIcon>{tab.icon}</NavIcon>
-              {tab.label}
-            </PopoverItem>
-          ))}
-        </Popover>
-      )}
       {openPopoverGroupId === 'settings' && settingsGroup && (
         <Popover ref={popoverRef} style={{ top: popoverTop }}>
           {settingsGroup.tabs.map(tab => (
@@ -559,7 +524,7 @@ export function OpsShell() {
       )}
 
       <Content
-        $fullWidth={activeTab === 'pipeline' || activeTab === 'outreach' || activeTab === 'campaigns-events'}
+        $fullWidth={activeTab === 'pipeline' || activeTab === 'campaigns-outreach' || activeTab === 'campaigns-events'}
         $narrow={isNarrow}
       >
         <ContentHeader>
@@ -570,14 +535,11 @@ export function OpsShell() {
         {activeTab === 'pipeline' && <PipelineTab />}
         {activeTab === 'channels' && <ChannelsTab />}
         {activeTab === 'activity' && <ActivityTab />}
-        {activeTab === 'outreach' && <OutreachTab />}
+        {activeTab === 'campaigns-outreach' && <OutreachTab />}
         {activeTab === 'campaigns-suggest' && <CampaignsSuggestTab />}
         {activeTab === 'campaigns-events' && <CampaignsEventsTab />}
         {activeTab === 'campaigns-contributors' && <CampaignsContributorsTab />}
-        {activeTab === 'campaigns-recruiting' && <AmbassadorRecruitingTab />}
         {activeTab === 'campaigns-ambassadors' && <CampaignsAmbassadorsTab />}
-        {activeTab === 'campaigns-assets' && <CampaignsAssetsTab />}
-        {activeTab === 'campaigns-analytics' && <CampaignsAnalyticsTab />}
         {activeTab === 'settings-register-agent' && <SettingsRegisterAgentTab />}
       </Content>
     </Shell>

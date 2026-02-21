@@ -92,7 +92,7 @@ export function timeAgo(dateStr?: string): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-const OUTREACH_PATH = '/ops?tab=outreach';
+const OUTREACH_PATH = '/ops?tab=campaigns-outreach';
 
 export function OutreachTab() {
   const router = useRouter();

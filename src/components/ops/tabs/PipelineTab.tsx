@@ -377,7 +377,7 @@ export function PipelineTab() {
         <SyncDeployButton type="button" onClick={handleSyncDeployments} disabled={syncLoading}>
           {syncLoading ? 'Syncing…' : 'Sync deployment status'}
         </SyncDeployButton>
-        <OutreachLink href="/ops?tab=outreach">Discover & outreach</OutreachLink>
+        <OutreachLink href="/ops?tab=campaigns-outreach">Discover & outreach</OutreachLink>
       </div>
     <Board>
       {STAGES.map(stage => {

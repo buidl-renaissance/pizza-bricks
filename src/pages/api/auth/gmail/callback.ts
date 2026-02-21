@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const error = req.query.error as string;
 
   if (error) {
-    return res.redirect('/ops?tab=outreach&gmail_auth=error&reason=' + encodeURIComponent(error));
+    return res.redirect('/ops?tab=campaigns-outreach&gmail_auth=error&reason=' + encodeURIComponent(error));
   }
 
   if (!code) {
@@ -54,10 +54,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2));
     console.log(`Gmail authenticated as ${senderEmail}`);
 
-    res.redirect('/ops?tab=outreach&gmail_auth=success&account=' + encodeURIComponent(senderEmail));
+    res.redirect('/ops?tab=campaigns-outreach&gmail_auth=success&account=' + encodeURIComponent(senderEmail));
   } catch (err) {
     console.error('Gmail OAuth callback error:', err);
     const message = err instanceof Error ? err.message : 'OAuth failed';
-    res.redirect('/ops?tab=outreach&gmail_auth=error&reason=' + encodeURIComponent(message));
+    res.redirect('/ops?tab=campaigns-outreach&gmail_auth=error&reason=' + encodeURIComponent(message));
   }
 }
