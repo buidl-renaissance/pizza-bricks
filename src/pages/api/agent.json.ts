@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 /**
  * ERC-8004 agent registration file.
- * Served at /agent.json — referenced as the agentURI when registering
+ * Served at /agent.json (via rewrite) — referenced as the agentURI when registering
  * the Pizza Bricks agent in the Identity Registry on Base mainnet.
  */
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {
