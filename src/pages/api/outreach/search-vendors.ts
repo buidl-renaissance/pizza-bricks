@@ -10,6 +10,12 @@ import { checkWebsiteQuality, websiteQualitySortOrder } from '@/lib/websiteCheck
 
 const MILES_TO_METERS = 1609.34;
 
+/** Coerce empty string to null for unique columns to avoid SQLite issues */
+function orNull(v: string | null | undefined): string | null {
+  if (v == null || typeof v !== 'string') return null;
+  const t = v.trim();
+  return t !== '' ? t : null;
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -49,9 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (existing) {
         await db.update(vendors)
           .set({
-            facebookPageId: vendor.facebookPageId || existing.facebookPageId,
+            facebookPageId: orNull(vendor.facebookPageId ?? existing.facebookPageId ?? null),
             facebookPageUrl: vendor.facebookPageUrl || existing.facebookPageUrl,
-            googlePlaceId: vendor.googlePlaceId || existing.googlePlaceId,
+            googlePlaceId: orNull(vendor.googlePlaceId ?? existing.googlePlaceId ?? null),
             name: vendor.name,
             address: vendor.address || existing.address,
             phone: vendor.phone || existing.phone,
@@ -73,9 +79,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const id = uuid();
         await db.insert(vendors).values({
           id,
-          facebookPageId: vendor.facebookPageId || null,
+          facebookPageId: orNull(vendor.facebookPageId ?? null),
           facebookPageUrl: vendor.facebookPageUrl || null,
-          googlePlaceId: vendor.googlePlaceId || null,
+          googlePlaceId: orNull(vendor.googlePlaceId ?? null),
           name: vendor.name,
           address: vendor.address,
           phone: vendor.phone,
