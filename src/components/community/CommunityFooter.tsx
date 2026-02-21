@@ -1,12 +1,16 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import styled from "styled-components";
 import { COMMUNITY_FOOTER } from "@/content/communityCopy";
 
+const PIZZADAO_LOGO_WHITE =
+  "https://pizzadao.github.io/pizzadao-brand-kit/pizzadao-logos/pizzadao-logo-white.png";
+
 const Footer = styled.footer`
   padding: 3rem 1.5rem 2rem;
-  border-top: 1px solid rgba(253, 248, 243, 0.1);
-  background: #0f0d0b;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #000000;
 `;
 
 const Container = styled.div`
@@ -26,14 +30,9 @@ const LogoBlock = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: rgba(253, 248, 243, 0.5);
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
   font-size: 1.125rem;
   font-weight: 600;
-`;
-
-const LogoEmoji = styled.span`
-  font-size: 1.5rem;
 `;
 
 const Columns = styled.div`
@@ -48,10 +47,11 @@ const Column = styled.div`
 
 const ColumnTitle = styled.div`
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(253, 248, 243, 0.5);
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 1rem;
 `;
 
@@ -63,22 +63,24 @@ const ColumnLinks = styled.div`
 
 const ColumnLink = styled(Link)`
   font-size: 0.875rem;
-  color: rgba(253, 248, 243, 0.4);
+  font-family: "Righteous", cursive;
+  color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   &:hover {
-    color: rgba(253, 248, 243, 0.7);
+    color: #7DD3E8;
   }
 `;
 
 const Bottom = styled.div`
   padding-top: 1.5rem;
-  border-top: 1px solid rgba(253, 248, 243, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   text-align: center;
 `;
 
 const Copyright = styled.p`
   font-size: 0.8125rem;
-  color: rgba(253, 248, 243, 0.35);
+  font-family: "Righteous", cursive;
+  color: rgba(255, 255, 255, 0.4);
   margin: 0;
 `;
 
@@ -99,8 +101,12 @@ export const CommunityFooter: React.FC = () => {
       <Container>
         <Top>
           <LogoBlock>
-            <LogoEmoji>🍕🧱</LogoEmoji>
-            <span>{f.logo}</span>
+            <Image
+              src={PIZZADAO_LOGO_WHITE}
+              alt="PizzaDAO"
+              width={120}
+              height={30}
+            />
           </LogoBlock>
           <Columns>
             {f.columns.map((col) => (

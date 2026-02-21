@@ -29,7 +29,10 @@ const HomePage: React.FC = () => {
         <title>{COMMUNITY_META.title}</title>
         <meta name="description" content={COMMUNITY_META.description} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" href="/favicon.ico" />
+        <link
+          rel="icon"
+          href="https://pizzadao.github.io/pizzadao-brand-kit/pizzadao-logos/pizzadao-icon-black.png"
+        />
         <meta property="og:title" content={COMMUNITY_META.title} />
         <meta property="og:description" content={COMMUNITY_META.description} />
         <meta property="og:type" content="website" />

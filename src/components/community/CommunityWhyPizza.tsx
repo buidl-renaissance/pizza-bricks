@@ -48,12 +48,14 @@ const Label = styled.div`
   background: ${({ theme }) => theme.accentMuted};
   color: ${({ theme }) => theme.accent};
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   margin-bottom: 1.5rem;
 `;
 
 const Title = styled.h2`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 900;
   font-size: clamp(2rem, 4vw, 3rem);
   color: ${({ theme }) => theme.text};
   margin: 0 0 2rem;
@@ -87,13 +89,15 @@ const CardIcon = styled.div`
 `;
 
 const CardTitle = styled.h3`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 800;
   font-size: 1.125rem;
   color: ${({ theme }) => theme.text};
   margin: 0 0 0.5rem;
 `;
 
 const CardBody = styled.p`
+  font-family: "Righteous", cursive;
   font-size: 0.875rem;
   color: ${({ theme }) => theme.textSecondary};
   line-height: 1.6;

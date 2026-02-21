@@ -22,6 +22,20 @@
       "when": 1771639177697,
       "tag": "0002_yellow_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1771652733136,
+      "tag": "0003_lonely_exodus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1771655416967,
+      "tag": "0004_optimal_prodigy",
+      "breakpoints": true
     }
   ]
 }

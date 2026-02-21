@@ -41,15 +41,17 @@ const Label = styled.div`
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  background: rgba(253, 248, 243, 0.15);
+  background: rgba(255, 225, 53, 0.15);
   color: ${({ theme }) => theme.accentGold};
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   margin-bottom: 1rem;
 `;
 
 const Title = styled.h2`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 900;
   font-size: clamp(2rem, 4vw, 3rem);
   color: ${({ theme }) => theme.signalWhite};
   margin: 0;
@@ -67,14 +69,14 @@ const Grid = styled.div`
 
 const StepCard = styled.div`
   position: relative;
-  background: rgba(253, 248, 243, 0.06);
-  border: 1px solid rgba(253, 248, 243, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 2rem;
   text-align: center;
   transition: background 0.2s;
   &:hover {
-    background: rgba(253, 248, 243, 0.1);
+    background: rgba(255, 255, 255, 0.1);
   }
 `;
 
@@ -87,28 +89,31 @@ const StepNumber = styled.div`
   position: absolute;
   top: 1rem;
   right: 1.5rem;
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 900;
   font-size: 3rem;
-  color: rgba(253, 248, 243, 0.2);
+  color: rgba(255, 255, 255, 0.2);
   user-select: none;
 `;
 
 const StepTitle = styled.h3`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 800;
   font-size: 1.5rem;
   color: ${({ theme }) => theme.signalWhite};
   margin: 0 0 0.75rem;
 `;
 
 const StepDescription = styled.p`
-  color: rgba(253, 248, 243, 0.65);
+  font-family: "Righteous", cursive;
+  color: rgba(255, 255, 255, 0.7);
   line-height: 1.6;
   margin: 0;
 `;
 
 const ProgressBox = styled.div`
-  background: rgba(253, 248, 243, 0.06);
-  border: 1px solid rgba(253, 248, 243, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 2rem;
 `;
@@ -121,18 +126,20 @@ const ProgressHeader = styled.div`
 `;
 
 const ProgressLabel = styled.span`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 700;
   color: ${({ theme }) => theme.signalWhite};
 `;
 
 const ProgressPercent = styled.span`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 800;
   color: ${({ theme }) => theme.accentGold};
 `;
 
 const ProgressTrack = styled.div`
   height: 1rem;
-  background: rgba(253, 248, 243, 0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   overflow: hidden;
 `;
@@ -150,7 +157,8 @@ const ProgressFooter = styled.div`
   justify-content: space-between;
   margin-top: 0.75rem;
   font-size: 0.875rem;
-  color: rgba(253, 248, 243, 0.5);
+  font-family: "Righteous", cursive;
+  color: rgba(255, 255, 255, 0.5);
   span:last-of-type {
     color: ${({ theme }) => theme.accentGold};
     font-weight: 600;

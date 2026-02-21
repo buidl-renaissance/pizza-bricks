@@ -11,6 +11,13 @@ const ChannelsTab = dynamic(() => import('./tabs/ChannelsTab').then(m => ({ defa
 const ActivityTab = dynamic(() => import('./tabs/ActivityTab').then(m => ({ default: m.ActivityTab })), { ssr: false });
 const ManualActionsTab = dynamic(() => import('./tabs/ManualActionsTab').then(m => ({ default: m.ManualActionsTab })), { ssr: false });
 const OutreachTab = dynamic(() => import('./tabs/OutreachTab').then(m => ({ default: m.OutreachTab })), { ssr: false });
+const CampaignsSuggestTab = dynamic(() => import('./tabs/CampaignsSuggestTab').then(m => ({ default: m.CampaignsSuggestTab })), { ssr: false });
+const CampaignsEventsTab = dynamic(() => import('./tabs/CampaignsEventsTab').then(m => ({ default: m.CampaignsEventsTab })), { ssr: false });
+const CampaignsContributorsTab = dynamic(() => import('./tabs/CampaignsContributorsTab').then(m => ({ default: m.CampaignsContributorsTab })), { ssr: false });
+const CampaignsAmbassadorsTab = dynamic(() => import('./tabs/CampaignsAmbassadorsTab').then(m => ({ default: m.CampaignsAmbassadorsTab })), { ssr: false });
+const CampaignsAssetsTab = dynamic(() => import('./tabs/CampaignsAssetsTab').then(m => ({ default: m.CampaignsAssetsTab })), { ssr: false });
+const CampaignsAnalyticsTab = dynamic(() => import('./tabs/CampaignsAnalyticsTab').then(m => ({ default: m.CampaignsAnalyticsTab })), { ssr: false });
+const AmbassadorRecruitingTab = dynamic(() => import('./tabs/AmbassadorRecruitingTab').then(m => ({ default: m.AmbassadorRecruitingTab })), { ssr: false });
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: '📊' },
@@ -19,6 +26,13 @@ const TABS = [
   { id: 'activity', label: 'Activity', icon: '📋' },
   { id: 'actions', label: 'Actions', icon: '🖐' },
   { id: 'outreach', label: 'Outreach', icon: '📤' },
+  { id: 'campaigns-suggest', label: 'Suggest Campaign', icon: '🎯' },
+  { id: 'campaigns-events', label: 'Upcoming Events', icon: '📅' },
+  { id: 'campaigns-contributors', label: 'Local Creators', icon: '👥' },
+  { id: 'ambassador-recruiting', label: 'Ambassador Recruiting', icon: '🎪' },
+  { id: 'campaigns-ambassadors', label: 'Creator Outreach', icon: '📬' },
+  { id: 'campaigns-assets', label: 'Event Assets', icon: '🖼' },
+  { id: 'campaigns-analytics', label: 'Analytics', icon: '📈' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -159,7 +173,7 @@ export function OpsShell() {
         <BackLink href="/dashboard">&larr; Dashboard</BackLink>
       </Sidebar>
 
-      <Content $fullWidth={activeTab === 'pipeline' || activeTab === 'outreach'}>
+      <Content $fullWidth={activeTab === 'pipeline' || activeTab === 'outreach' || activeTab === 'campaigns-events'}>
         <ContentHeader>
           <TabTitle>{currentTab.label}</TabTitle>
         </ContentHeader>
@@ -170,6 +184,13 @@ export function OpsShell() {
         {activeTab === 'activity' && <ActivityTab />}
         {activeTab === 'actions' && <ManualActionsTab />}
         {activeTab === 'outreach' && <OutreachTab />}
+        {activeTab === 'campaigns-suggest' && <CampaignsSuggestTab />}
+        {activeTab === 'campaigns-events' && <CampaignsEventsTab />}
+        {activeTab === 'campaigns-contributors' && <CampaignsContributorsTab />}
+        {activeTab === 'ambassador-recruiting' && <AmbassadorRecruitingTab />}
+        {activeTab === 'campaigns-ambassadors' && <CampaignsAmbassadorsTab />}
+        {activeTab === 'campaigns-assets' && <CampaignsAssetsTab />}
+        {activeTab === 'campaigns-analytics' && <CampaignsAnalyticsTab />}
       </Content>
     </Shell>
   );

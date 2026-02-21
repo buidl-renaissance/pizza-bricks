@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import styled from "styled-components";
 import { BUSINESS_NAVBAR } from "@/content/businessCopy";
 
@@ -37,10 +38,6 @@ const LogoLink = styled(Link)`
   &:hover {
     color: ${({ theme }) => theme.text};
   }
-`;
-
-const LogoEmoji = styled.span`
-  font-size: 1.5rem;
 `;
 
 const Badge = styled.span`
@@ -170,8 +167,13 @@ export const BusinessNavbar: React.FC = () => {
     <Header>
       <Container>
         <LogoLink href="/">
-          <LogoEmoji>🍕🧱</LogoEmoji>
-          <span>{BUSINESS_NAVBAR.logo}</span>
+          <Image
+            src="/pizza-bricks.png"
+            alt={BUSINESS_NAVBAR.logo}
+            width={140}
+            height={36}
+            priority
+          />
           <Badge>{BUSINESS_NAVBAR.badge}</Badge>
         </LogoLink>
 

@@ -45,7 +45,8 @@ const Emoji = styled.div`
 `;
 
 const Title = styled.h2`
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
+  font-family: "Righteous", cursive;
+  font-weight: 900;
   font-size: clamp(2.5rem, 5vw, 4rem);
   color: ${({ theme }) => theme.signalWhite};
   margin: 0 0 0.5rem;
@@ -68,8 +69,9 @@ const TitleAccent = styled.span`
 `;
 
 const Subtitle = styled.p`
+  font-family: "Righteous", cursive;
   font-size: 1.25rem;
-  color: rgba(253, 248, 243, 0.65);
+  color: rgba(255, 255, 255, 0.7);
   max-width: 32rem;
   margin: 0 auto 3rem;
   line-height: 1.6;
@@ -93,8 +95,8 @@ const PrimaryButton = styled(Link)`
   justify-content: center;
   padding: 0.875rem 2rem;
   font-size: 1.125rem;
-  font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
   background: ${({ theme }) => theme.accent};
   border-radius: ${({ theme }) => theme.borderRadius};
@@ -112,17 +114,17 @@ const OutlineButton = styled(Link)`
   justify-content: center;
   padding: 0.875rem 2rem;
   font-size: 1.125rem;
-  font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   color: ${({ theme }) => theme.signalWhite};
   background: transparent;
-  border: 2px solid rgba(253, 248, 243, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.5);
   border-radius: ${({ theme }) => theme.borderRadius};
   text-decoration: none;
   transition: border-color 0.2s, background 0.2s;
   &:hover {
     border-color: ${({ theme }) => theme.signalWhite};
-    background: rgba(253, 248, 243, 0.1);
+    background: rgba(255, 255, 255, 0.1);
     color: ${({ theme }) => theme.signalWhite};
   }
 `;
@@ -133,8 +135,8 @@ const AccentButton = styled(Link)`
   justify-content: center;
   padding: 0.875rem 2rem;
   font-size: 1.125rem;
-  font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
+  font-weight: 800;
+  font-family: "Righteous", cursive;
   color: ${({ theme }) => theme.text};
   background: ${({ theme }) => theme.accentGold};
   border-radius: ${({ theme }) => theme.borderRadius};
@@ -152,7 +154,8 @@ const LinkRow = styled.div`
   justify-content: center;
   gap: 1.5rem;
   font-size: 0.875rem;
-  color: rgba(253, 248, 243, 0.45);
+  font-family: "Righteous", cursive;
+  color: rgba(255, 255, 255, 0.5);
   a {
     color: inherit;
     text-decoration: none;

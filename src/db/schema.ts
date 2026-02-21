@@ -10,6 +10,7 @@ export type ActivityEventType =
   | 'site_generated'|'site_published'|'site_updated'|'site_viewed'|'prospect_discovered'|'prospect_batch_scraped'
   | 'onboarding_started'|'wallet_setup'|'onboarding_completed'|'follow_up_triggered'
   | 'marketing_materials_requested'|'event_influencer_requested'|'reply_intent_parsed'
+  | 'campaign_suggested'|'campaign_activated'|'campaign_outreach_sent'|'campaign_analytics_recorded'
   | 'manual_action'|'agent_error';
 export type ActivityEventStatus = 'completed'|'active'|'pending'|'failed';
 export type TriggeredBy = 'agent'|'manual'|'system';
@@ -165,3 +166,159 @@ export type Vendor = typeof vendors.$inferSelect;
 export type NewVendor = typeof vendors.$inferInsert;
 export type OutreachEmail = typeof outreachEmails.$inferSelect;
 export type NewOutreachEmail = typeof outreachEmails.$inferInsert;
+
+// ── Campaign Orchestrator ─────────────────────────────────────────────────────
+export type CampaignType =
+  | 'community_event'      // Pizza Party / Community Event
+  | 'contributor_driven'   // Photographer Night, Creator Night
+  | 'growth_milestone'     // 1000 Followers Unlock, Truck to Brick
+  | 'referral_rally';      // Referral links, ambassador competition
+
+export type CampaignStatus = 'suggested' | 'active' | 'completed' | 'cancelled';
+
+export type ContributorRole = 'photographer' | 'influencer' | 'ambassador' | 'repeat_customer' | 'referral_leader';
+
+export type ContributorInviteStatus = 'pending' | 'accepted' | 'declined';
+
+export type OutreachChannel = 'dm' | 'email' | 'sms';
+
+export type OutreachStatus = 'draft' | 'pending_approval' | 'sent' | 'failed';
+
+export const campaigns = sqliteTable('campaigns', {
+  id: text('id').primaryKey(),
+  vendorId: text('vendorId').references(() => vendors.id),
+  prospectId: text('prospectId').references(() => prospects.id),
+  type: text('type').$type<CampaignType>().notNull(),
+  status: text('status').$type<CampaignStatus>().notNull().default('suggested'),
+  name: text('name').notNull(),
+  description: text('description'),
+  suggestedDate: text('suggestedDate'), // ISO date string
+  suggestedTime: text('suggestedTime'),
+  estimatedCost: integer('estimatedCost'), // cents
+  estimatedReach: integer('estimatedReach'),
+  requiredContributors: integer('requiredContributors'),
+  budget: integer('budget'), // cents
+  timeline: text('timeline'), // JSON: { days, phases }
+  assetList: text('assetList'), // JSON: string[]
+  underutilizationInsight: text('underutilizationInsight'),
+  metadata: text('metadata'), // JSON
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const campaignEvents = sqliteTable('campaign_events', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaignId').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  publishedEventId: integer('publishedEventId'), // renaissance-events event id
+  rsvpUrl: text('rsvpUrl'),
+  qrImageUrl: text('qrImageUrl'),
+  sourceId: text('sourceId'), // Original ID in pizza-bricks
+  sourceUrl: text('sourceUrl'), // URL to view in pizza-bricks
+  metadata: text('metadata'), // JSON
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const contributors = sqliteTable('contributors', {
+  id: text('id').primaryKey(),
+  vendorId: text('vendorId').references(() => vendors.id),
+  prospectId: text('prospectId').references(() => prospects.id),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  instagramHandle: text('instagramHandle'),
+  role: text('role').$type<ContributorRole>().notNull(),
+  metadata: text('metadata'), // JSON: reach, follower count, etc.
+  lastInvitedAt: integer('lastInvitedAt', { mode: 'timestamp' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const campaignContributorInvites = sqliteTable('campaign_contributor_invites', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaignId').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  contributorId: text('contributorId').notNull().references(() => contributors.id, { onDelete: 'cascade' }),
+  role: text('role').$type<ContributorRole>().notNull(),
+  status: text('status').$type<ContributorInviteStatus>().notNull().default('pending'),
+  invitedAt: integer('invitedAt', { mode: 'timestamp' }),
+  respondedAt: integer('respondedAt', { mode: 'timestamp' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const campaignAssets = sqliteTable('campaign_assets', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaignId').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  assetType: text('assetType').notNull(), // poster, ig_post, rsvp_page, qr_image
+  url: text('url'),
+  content: text('content'), // Plain text for IG post drafts, etc.
+  metadata: text('metadata'), // JSON
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const campaignOutreach = sqliteTable('campaign_outreach', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaignId').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  contributorId: text('contributorId').references(() => contributors.id),
+  channel: text('channel').$type<OutreachChannel>().notNull(),
+  recipient: text('recipient').notNull(), // email, phone, or handle
+  status: text('status').$type<OutreachStatus>().notNull().default('draft'),
+  subject: text('subject'), // for email
+  bodyHtml: text('bodyHtml'),
+  bodyText: text('bodyText'),
+  sentAt: integer('sentAt', { mode: 'timestamp' }),
+  metadata: text('metadata'), // JSON
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export const campaignAnalytics = sqliteTable('campaign_analytics', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaignId').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  campaignEventId: text('campaignEventId').references(() => campaignEvents.id),
+  revenue: integer('revenue'), // cents
+  footTraffic: integer('footTraffic'),
+  socialReach: integer('socialReach'),
+  newFollowers: integer('newFollowers'),
+  conversionLift: text('conversionLift'), // e.g. "15%"
+  metadata: text('metadata'), // JSON
+  recordedAt: integer('recordedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export type Campaign = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
+export type CampaignEvent = typeof campaignEvents.$inferSelect;
+export type NewCampaignEvent = typeof campaignEvents.$inferInsert;
+export type Contributor = typeof contributors.$inferSelect;
+export type NewContributor = typeof contributors.$inferInsert;
+export type CampaignContributorInvite = typeof campaignContributorInvites.$inferSelect;
+export type NewCampaignContributorInvite = typeof campaignContributorInvites.$inferInsert;
+export type CampaignAsset = typeof campaignAssets.$inferSelect;
+export type NewCampaignAsset = typeof campaignAssets.$inferInsert;
+export type CampaignOutreach = typeof campaignOutreach.$inferSelect;
+export type NewCampaignOutreach = typeof campaignOutreach.$inferInsert;
+export type CampaignAnalytic = typeof campaignAnalytics.$inferSelect;
+export type NewCampaignAnalytic = typeof campaignAnalytics.$inferInsert;
+
+// ── Ambassador recruiting (public signups) ────────────────────────────────────
+export type AmbassadorSignupStatus = 'new' | 'added' | 'dismissed';
+
+export const ambassadorSignups = sqliteTable('ambassador_signups', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  city: text('city'),
+  role: text('role').$type<ContributorRole>().notNull(),
+  instagramHandle: text('instagramHandle'),
+  message: text('message'), // optional "why" or notes
+  status: text('status').$type<AmbassadorSignupStatus>().notNull().default('new'),
+  addedAsContributorId: text('addedAsContributorId').references(() => contributors.id),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).default(sql`(strftime('%s','now'))`).notNull(),
+});
+
+export type AmbassadorSignup = typeof ambassadorSignups.$inferSelect;
+export type NewAmbassadorSignup = typeof ambassadorSignups.$inferInsert;

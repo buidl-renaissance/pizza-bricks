@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import styled from "styled-components";
 import { COMMUNITY_NAVBAR } from "@/content/communityCopy";
 
@@ -31,16 +32,10 @@ const LogoLink = styled(Link)`
   gap: 0.5rem;
   text-decoration: none;
   color: ${({ theme }) => theme.text};
-  font-family: "Fredoka", "Space Grotesk", sans-serif;
-  font-size: 1.25rem;
-  font-weight: 600;
   &:hover {
     color: ${({ theme }) => theme.text};
+    opacity: 0.9;
   }
-`;
-
-const LogoEmoji = styled.span`
-  font-size: 1.5rem;
 `;
 
 const Nav = styled.nav`
@@ -50,7 +45,8 @@ const Nav = styled.nav`
     align-items: center;
     gap: 2rem;
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 600;
+    font-family: "Righteous", cursive;
   }
 `;
 
@@ -86,8 +82,8 @@ const CtaButton = styled(Link)`
   align-items: center;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-family: "Righteous", cursive;
   color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
   background: ${({ theme }) => theme.accent};
   border-radius: ${({ theme }) => theme.borderRadius};
@@ -151,8 +147,8 @@ const MobileCta = styled(Link)`
   width: 100%;
   text-align: center;
   padding: 0.75rem 1rem;
-  font-weight: 600;
-  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-family: "Righteous", cursive;
   color: ${({ theme }) => theme.onAccent ?? theme.signalWhite};
   background: ${({ theme }) => theme.accent};
   border-radius: ${({ theme }) => theme.borderRadius};
@@ -170,8 +166,13 @@ export const CommunityNavbar: React.FC = () => {
     <Header>
       <Container>
         <LogoLink href="/">
-          <LogoEmoji>🍕🧱</LogoEmoji>
-          <span>{COMMUNITY_NAVBAR.logo}</span>
+          <Image
+            src="/pizza-bricks.png"
+            alt={COMMUNITY_NAVBAR.logo}
+            width={140}
+            height={36}
+            priority
+          />
         </LogoLink>
 
         <Nav>

@@ -7,6 +7,7 @@ import { runEmailOutreach, sendEmailToProspect } from '@/lib/agent/workflows/ema
 import { runFollowUp } from '@/lib/agent/workflows/follow-up';
 import { generateSiteForProspect } from '@/lib/agent/workflows/site-generation';
 import { processReply } from '@/lib/agent/workflows/reply-intent';
+import { runSuggestCampaign } from '@/lib/agent/workflows/suggest-campaign';
 
 export type ManualActionType =
   | 'discover_prospects'
@@ -15,6 +16,7 @@ export type ManualActionType =
   | 'generate_site'
   | 'run_full_tick'
   | 'simulate_reply'
+  | 'suggest_campaign'
   | 'pause_agent'
   | 'resume_agent';
 
@@ -22,11 +24,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!await requireAdmin(req, res)) return;
 
-  const { action, prospectId, templateId, body: replyBody } = req.body as {
+  const { action, prospectId, templateId, body: replyBody, vendorId, budgetHint, city } = req.body as {
     action: ManualActionType;
     prospectId?: string;
     templateId?: string;
     body?: string;
+    vendorId?: string;
+    budgetHint?: number;
+    city?: string;
   };
 
   if (!action) return res.status(400).json({ error: 'action is required' });
@@ -86,6 +91,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { runAgentTick } = await import('@/lib/agent');
         const tickResult = await runAgentTick();
         result = tickResult.results;
+        break;
+      }
+
+      case 'suggest_campaign': {
+        const campaignResult = await runSuggestCampaign({
+          vendorId,
+          prospectId,
+          budgetHint,
+          city,
+        });
+        result = { ...campaignResult };
         break;
       }
 

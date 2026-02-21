@@ -83,30 +83,29 @@ const TextColumn = styled.div`
   }
 `;
 
-/* Badge: white/off-white bg, thin border, muted text - matching pizza-brick-path */
+/* Badge - Pizza Yellow accent */
 const Badge = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  border: 1px solid rgba(108, 99, 91, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: #FFFFFF;
-  font-family: "DM Sans", sans-serif;
+  font-family: "Righteous", cursive;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #6C635B;
+  font-weight: 700;
+  color: #1A1412;
   margin-bottom: 1.5rem;
 `;
 
-/* Righteous font matching pizza-brick-path headlines */
 const Headline = styled.h1`
   font-family: "Righteous", cursive;
+  font-weight: 700;
   font-size: clamp(3rem, 8vw, 4.5rem);
-  font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.02em;
-  color: #281E14;
+  color: #000000;
   margin: 0 0 0.75rem;
   display: flex;
   flex-wrap: wrap;
@@ -117,15 +116,14 @@ const Headline = styled.h1`
   }
 `;
 
-/* Orange-gold gradient for "of Pizza." - matching pizza-brick-path shimmer-text */
+/* Pizza Yellow gradient for "of Pizza." */
 const HeadlineAccent = styled.span`
   display: block;
   background: linear-gradient(
     90deg,
-    #FFC700 0%,
-    #FFB200 30%,
-    #FF8A00 70%,
-    #E07000 100%
+    #FFE135 0%,
+    #FFD700 50%,
+    #FFE135 100%
   );
   background-size: 200% auto;
   -webkit-background-clip: text;
@@ -134,11 +132,11 @@ const HeadlineAccent = styled.span`
   animation: ${shimmer} 3s linear infinite;
 `;
 
-/* DM Sans for body text - matching pizza-brick-path */
 const Subcopy = styled.p`
-  font-family: "DM Sans", sans-serif;
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
   font-size: clamp(1.125rem, 2vw, 1.5rem);
-  color: #6C635B;
+  color: #3D3028;
   max-width: 32rem;
   margin: 0 0 1.5rem;
   line-height: 1.5;
@@ -164,7 +162,6 @@ const CtaRow = styled.div`
   }
 `;
 
-/* Primary: vibrant red, white text, elevated shadow - matching reference */
 const PrimaryButton = styled(Link)`
   display: inline-flex;
   align-items: center;
@@ -172,23 +169,22 @@ const PrimaryButton = styled(Link)`
   gap: 0.5rem;
   padding: 1rem 2rem;
   font-size: 1.125rem;
-  font-weight: 600;
-  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-family: "Righteous", cursive;
   color: #FFFFFF;
-  background: #CE2828;
+  background: #E85D5D;
   border: none;
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(206, 40, 40, 0.35);
+  box-shadow: 0 4px 14px rgba(232, 93, 93, 0.35);
   text-decoration: none;
   transition: background 0.2s, box-shadow 0.2s;
   &:hover {
-    background: #B82222;
-    box-shadow: 0 6px 18px rgba(206, 40, 40, 0.4);
+    background: #D44D4D;
+    box-shadow: 0 6px 18px rgba(232, 93, 93, 0.4);
     color: #FFFFFF;
   }
 `;
 
-/* Secondary: light beige, dark text, subtle border - matching reference */
 const SecondaryButton = styled(Link)`
   display: inline-flex;
   align-items: center;
@@ -197,18 +193,18 @@ const SecondaryButton = styled(Link)`
   padding: 1rem 2rem;
   font-size: 1.125rem;
   font-weight: 600;
-  font-family: "DM Sans", sans-serif;
-  color: #281E14;
-  background: #FDF8F3;
-  border: 1px solid rgba(108, 99, 91, 0.2);
+  font-family: "Righteous", cursive;
+  color: #000000;
+  background: #FFFFFF;
+  border: 2px solid #000000;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   text-decoration: none;
   transition: border-color 0.2s, background 0.2s;
   &:hover {
-    border-color: rgba(108, 99, 91, 0.35);
-    background: #FCF5EF;
-    color: #281E14;
+    background: #FDF8F3;
+    border-color: #E85D5D;
+    color: #000000;
   }
 `;
 
@@ -218,7 +214,7 @@ const CitiesRow = styled.div`
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  font-family: "DM Sans", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.875rem;
   color: #4A3C35;
   margin-top: 1.25rem;
@@ -230,8 +226,8 @@ const CitiesRow = styled.div`
 const CityItem = styled.span``;
 
 const CitiesNote = styled.span`
-  color: #CE2828;
-  font-weight: 600;
+  color: #E85D5D;
+  font-weight: 800;
 `;
 
 const ImageColumn = styled.div`
@@ -303,11 +299,13 @@ const StatChipBottomRight = styled(StatChip)`
 
 const StatValue = styled.div<{ $brick?: boolean }>`
   font-family: "Righteous", cursive;
+  font-weight: 700;
   font-size: 1.5rem;
-  color: ${({ theme, $brick }) => ($brick ? theme.accent : theme.accent)};
+  color: ${({ theme }) => theme.accent};
 `;
 
 const StatLabel = styled.div`
+  font-family: "Inter", sans-serif;
   font-size: 0.75rem;
   color: ${({ theme }) => theme.textMuted};
 `;
@@ -321,6 +319,7 @@ const ScrollHint = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  font-family: "Inter", sans-serif;
   font-size: 0.875rem;
   color: ${({ theme }) => theme.textMuted};
 `;
