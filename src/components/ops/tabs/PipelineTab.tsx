@@ -181,6 +181,22 @@ const GenBtn = styled.button<{ $loading?: boolean }>`
   &:disabled { opacity: 0.6; }
 `;
 
+const SendOutreachBtn = styled.button<{ $loading?: boolean }>`
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.35rem;
+  background: ${({ theme }) => theme.accent};
+  color: ${({ theme }) => theme.background};
+  border: 1px solid ${({ theme }) => theme.accent};
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: ${({ $loading }) => $loading ? 'wait' : 'pointer'};
+  transition: opacity 0.12s ease;
+  &:hover:not(:disabled) { opacity: 0.9; }
+  &:disabled { opacity: 0.7; }
+`;
+
 const SyncDeployButton = styled.button`
   padding: 0.4rem 0.9rem;
   font-size: 0.75rem;
@@ -370,7 +386,7 @@ function ProspectCardItem({ prospect, site, onStageChange, onSiteGenerated, onOu
 export function PipelineTab() {
   const { prospects, reload: reloadProspects } = useProspects({ limit: 200 });
   const { sites, reload: reloadSites } = useSites();
-  const [localProspects, setLocalProspects] = useState<Prospect[]>([]);
+  const [localProspects, setLocalProspects] = useState<ProspectWithOutreach[]>([]);
 
   useEffect(() => { setLocalProspects(prospects); }, [prospects]);
 
