@@ -9,6 +9,7 @@ import { GrowthAgents } from "@/components/business/GrowthAgents";
 import { ActivationEngine } from "@/components/business/ActivationEngine";
 import { BusinessHowItWorks } from "@/components/business/BusinessHowItWorks";
 import { WhyTheGame } from "@/components/business/WhyTheGame";
+import { CommunityReferBusinessLink } from "@/components/community/CommunityReferBusinessLink";
 import { BusinessCTA } from "@/components/business/BusinessCTA";
 import { BusinessFooter } from "@/components/business/BusinessFooter";
 import { BUSINESS_META } from "@/content/businessCopy";
@@ -39,6 +40,7 @@ const BusinessPage: React.FC = () => {
             <ActivationEngine />
             <BusinessHowItWorks />
             <WhyTheGame />
+            <CommunityReferBusinessLink />
             <BusinessCTA />
           </PageWrap>
           <BusinessFooter />

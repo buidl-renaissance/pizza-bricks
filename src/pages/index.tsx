@@ -7,10 +7,10 @@ import { CommunityNavbar } from "@/components/community/CommunityNavbar";
 import { CommunityHero } from "@/components/community/CommunityHero";
 import { CommunityHowItWorks } from "@/components/community/CommunityHowItWorks";
 import { CommunityWhyPizza } from "@/components/community/CommunityWhyPizza";
-import { CommunityWhenWeBuild } from "@/components/community/CommunityWhenWeBuild";
 import { CommunityPoweredBy } from "@/components/community/CommunityPoweredBy";
 import { CommunityCities } from "@/components/community/CommunityCities";
 import { CommunityForOwners } from "@/components/community/CommunityForOwners";
+import { CommunityReferBusinessLink } from "@/components/community/CommunityReferBusinessLink";
 import { CommunityFAQ } from "@/components/community/CommunityFAQ";
 import { CommunityJoinSection } from "@/components/community/CommunityJoinSection";
 import { CommunityFinalCTA } from "@/components/community/CommunityFinalCTA";
@@ -41,10 +41,10 @@ const HomePage: React.FC = () => {
             <CommunityHero />
             <CommunityHowItWorks />
             <CommunityWhyPizza />
-            <CommunityWhenWeBuild />
             <CommunityPoweredBy />
             <CommunityCities />
             <CommunityForOwners />
+            <CommunityReferBusinessLink />
             <CommunityFAQ />
             <CommunityJoinSection />
             <CommunityFinalCTA />

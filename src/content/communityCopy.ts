@@ -98,6 +98,16 @@ export const COMMUNITY_CITIES = {
   yourCity: { name: "New City?", flag: "+", status: "Suggest a New City", cta: "Suggest a New City", ctaBody: "Think your city deserves a build zone? Let's talk." },
 };
 
+export const COMMUNITY_REFER_BUSINESS = {
+  label: "REFER A BUSINESS",
+  title: "Know a pizzeria we should reach out to?",
+  subtitle: "Help us grow the community. Share business contact info and your connection — we'll use your details to facilitate outreach.",
+  submitLabel: "Submit referral",
+  successMessage: "Thanks! We'll use this to reach out.",
+  linkCta: "Know a pizzeria we should reach out to?",
+  linkText: "Refer a business",
+};
+
 export const COMMUNITY_FOR_OWNERS = {
   label: "FOR PIZZERIA OWNERS",
   title: "Want to Own Your Bricks?",
